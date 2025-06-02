@@ -6,3 +6,7 @@ edition = "2024"
 [dependencies]
 uuid = { workspace = true }
 thiserror = { workspace = true }
+dashmap = "5.5"
+tokio = {  version = "1.45", features = ["full"] }
+
+[dev-dependencies]

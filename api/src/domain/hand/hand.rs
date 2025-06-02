@@ -1,6 +1,6 @@
-use crate::domain::{HandId, HandState, Player, Suit, Team};
+use crate::domain::{HandError, HandId, HandState, Player, Suit, Team};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Hand {
     id: HandId,
     dealer: Player,
@@ -30,6 +30,11 @@ impl Hand {
 
     pub fn state(&self) -> HandState {
         self.state
+    }
+    
+    pub fn with_state(mut self, state: HandState) -> Self {
+        self.state = state;
+        self
     }
 
     pub fn bidder(&self) -> Option<Player> {
@@ -72,6 +77,22 @@ impl Hand {
         match self.state {
             HandState::Completed { them_total, .. } => them_total.unwrap_or(0),
             _ => 0
+        }
+    }
+    
+    pub fn us_meld(&self) -> Option<u32> {
+        match self.state {
+            HandState::Completed { us_meld, .. } => us_meld,
+            HandState::WaitingForTricks { us_meld, .. } => us_meld,
+            _ => None
+        }
+    }
+    
+    pub fn them_meld(&self) -> Option<u32> {
+        match self.state {
+            HandState::Completed { them_meld, .. } => them_meld,
+            HandState::WaitingForTricks { them_meld, .. } => them_meld,
+            _ => None
         }
     }
 
@@ -264,17 +285,6 @@ impl Hand {
     }
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum HandError {
-    #[error("Invalid state transition: {0}")]
-    InvalidStateTransition(String),
-
-    #[error("Invalid bid: {0}")]
-    InvalidBid(String),
-
-    #[error("Total tricks must not exceed 50: {0} + {1}")]
-    InvalidTricks(u32, u32)
-}
 
 #[cfg(test)]
 
@@ -423,7 +433,7 @@ mod tests {
         let hand = Hand::new(Player::South)
             .place_bid(Player::North, 51)
             .unwrap()
-        ;
+            ;
 
         let result = hand.declare_trump(Suit::Spades);
 
@@ -445,7 +455,7 @@ mod tests {
         let hand = Hand::new(Player::South)
             .place_bid(Player::North, 51)
             .unwrap()
-        ;
+            ;
 
         let result = hand.declare_trump(Suit::NoMarriage);
 
@@ -482,7 +492,7 @@ mod tests {
         let hand = Hand::new(Player::South)
             .place_bid(Player::North, 51)
             .unwrap()
-        ;
+            ;
 
         let result = hand.declare_trump(Suit::Spades);
 
@@ -500,7 +510,7 @@ mod tests {
             .unwrap()
             .declare_trump(Suit::Spades)
             .unwrap()
-        ;
+            ;
 
         let result = hand.record_meld(24, 32);
 
@@ -527,7 +537,7 @@ mod tests {
             .unwrap()
             .declare_trump(Suit::Spades)
             .unwrap()
-        ;
+            ;
 
         let result = hand.record_meld(19, 32);
 

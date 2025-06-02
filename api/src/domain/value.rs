@@ -84,7 +84,7 @@ pub enum HandState {
     },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GameId(pub Uuid);
 
 impl GameId {
@@ -93,7 +93,7 @@ impl GameId {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HandId(pub Uuid);
 
 impl HandId {

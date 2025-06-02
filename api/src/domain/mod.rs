@@ -13,4 +13,5 @@ pub use value::{
     HandState
 };
 
-pub use hand::{Hand, HandError};
+pub use hand::{Hand, HandError, HandRepository, HandRepositoryError};
+pub use game::{Game, GameError, GameRepository, GameRepositoryError};

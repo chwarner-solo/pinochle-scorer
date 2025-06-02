@@ -1,25 +1,15 @@
-use crate::domain::{GameId, Player, GameState, Hand, HandError, Suit, HandState, Team};
+use crate::domain::{GameId, GameState, Hand, HandState, Player, Suit, Team};
+use crate::domain::game::GameError;
 
-#[derive(Debug, thiserror::Error)]
-pub enum GameError {
-    #[error("Invalid state transition: {0}")]
-    InvalidStateTransition(String),
-    #[error("Invalid game operation: {0}")]
-    InvalidOperation(String),
-    #[error("Hand error: {0}")]
-    HandError(#[from] HandError),
-    #[error("Not implemented: {0}")]
-    NotImplemented(String)
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone,PartialEq,Eq)]
 pub struct Game {
-    id: GameId,
+    pub(crate) id: GameId,
     current_dealer: Player,
     state: GameState,
     completed_hands: Vec<Hand>,
     current_hand: Option<Hand>,
 }
+
 
 impl Game {
     pub fn new(dealer: Player) -> Self {
@@ -53,6 +43,16 @@ impl Game {
         self.current_hand.clone()
     }
 
+    pub fn with_current_hand(mut self, hand: Option<Hand>) -> Self {
+        self.current_hand = hand;
+        self
+    }
+
+    pub fn with_state(mut self, state: GameState) -> Self {
+        self.state = state;
+        self
+    }
+
     fn next_dealer(&self) -> Player {
         self.current_dealer.next_clockwise()
     }
@@ -66,9 +66,9 @@ impl Game {
         let new_hand = Hand::new(self.current_dealer);
         Ok(
             Self {
-            state: GameState::InProgress,
-            current_hand: Some(new_hand),
-            ..self.clone()
+                state: GameState::InProgress,
+                current_hand: Some(new_hand),
+                ..self.clone()
             }
         )
     }
@@ -84,7 +84,7 @@ impl Game {
         (us_total, them_total)
     }
 
-    pub fn place_bid(&self, bidder: Player, amount: u32) -> Result<Self, GameError> {
+    pub fn record_bid(&self, bidder: Player, amount: u32) -> Result<Self, GameError> {
         let current_hand = self.current_hand
             .as_ref()
             .ok_or_else(|| GameError::InvalidOperation("No current hand".to_string()))?;
@@ -276,7 +276,7 @@ mod tests {
             .start_new_hand()
             .unwrap();
 
-        let result = game.place_bid(Player::North, 51);
+        let result = game.record_bid(Player::North, 51);
 
         assert!(result.is_ok());
         let new_game = result.unwrap();
@@ -298,7 +298,7 @@ mod tests {
             .start_new_hand()
             .unwrap();
 
-        let result = game.place_bid(Player::North, 49);
+        let result = game.record_bid(Player::North, 49);
 
         assert!(result.is_err());
 
@@ -312,7 +312,7 @@ mod tests {
     fn should_reject_place_bid_when_no_current_hand() {
         let game = Game::new(Player::South);
 
-        let result = game.place_bid(Player::North, 51);
+        let result = game.record_bid(Player::North, 51);
 
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -327,7 +327,7 @@ mod tests {
             .start_new_hand()
             .unwrap();
 
-        let result = game.place_bid(Player::North, 61);
+        let result = game.record_bid(Player::North, 61);
 
         assert!(result.is_err());
 
@@ -342,7 +342,7 @@ mod tests {
         let game = Game::new(Player::South)
             .start_new_hand()
             .unwrap()
-            .place_bid(Player::North, 51)
+            .record_bid(Player::North, 51)
             .unwrap();
 
         let result = game.declare_trump(Suit::Spades);
@@ -394,7 +394,7 @@ mod tests {
         let game = Game::new(Player::South)
             .start_new_hand()
             .unwrap()
-            .place_bid(Player::North, 51)
+            .record_bid(Player::North, 51)
             .unwrap()
             .declare_trump(Suit::Spades)
             .unwrap();
@@ -439,7 +439,7 @@ mod tests {
         let game = Game::new(Player::South)
             .start_new_hand()
             .unwrap()
-            .place_bid(Player::North, 51)
+            .record_bid(Player::North, 51)
             .unwrap()
             .declare_trump(Suit::Clubs)
             .unwrap();
@@ -472,7 +472,7 @@ mod tests {
         let game = Game::new(Player::South)
             .start_new_hand()
             .unwrap()
-            .place_bid(Player::North, 51)
+            .record_bid(Player::North, 51)
             .unwrap()
             .declare_trump(Suit::Spades)
             .unwrap()
@@ -503,7 +503,7 @@ mod tests {
         let game = Game::new(Player::South)
             .start_new_hand()
             .unwrap()
-            .place_bid(Player::North, 51)
+            .record_bid(Player::North, 51)
             .unwrap()
             .declare_trump(Suit::Spades)
             .unwrap()
@@ -524,7 +524,7 @@ mod tests {
         let game = Game::new(Player::South)
             .start_new_hand()
             .unwrap()
-            .place_bid(Player::North, 60)
+            .record_bid(Player::North, 60)
             .unwrap()
             .declare_trump(Suit::Spades)
             .unwrap()
