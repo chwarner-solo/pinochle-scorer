@@ -1,0 +1,9 @@
+[workspace]
+resover = "2"
+members = [
+    "api"
+]
+
+[workspace.dependencies]
+uuid = { version = "1.3.4", features = ["v4", "fast-rng", "macro-diagnostics"] }
+thiserror = "1.0"
