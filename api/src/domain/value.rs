@@ -1,3 +1,4 @@
+use std::fmt;
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};
 
@@ -7,7 +8,7 @@ pub enum Team {
     Them,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Suit {
     Spades,
     Hearts,
@@ -49,6 +50,16 @@ pub enum GameState {
     Completed,
 }
 
+impl fmt::Display for GameState {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            GameState::WaitingToStart => write!(f, "WaitingToStart"),
+            GameState::InProgress => write!(f, "InProgress"),
+            GameState::Completed => write!(f, "Completed"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HandState {
     WaitingForBid,
@@ -85,12 +96,31 @@ pub enum HandState {
     },
 }
 
+impl fmt::Display for HandState {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            HandState::WaitingForBid => write!(f, "WaitingForBid"),
+            HandState::WaitingForTrump { .. } => write!(f, "WaitingForTrump"),
+            HandState::NoMarriage { .. } => write!(f, "NoMarriage"),
+            HandState::WaitingForMeld { .. } => write!(f, "WaitingForMeld"),
+            HandState::WaitingForTricks { .. } => write!(f, "WaitingForTricks"),
+            HandState::Completed { .. } => write!(f, "Completed"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GameId(pub Uuid);
 
 impl GameId {
     pub fn new() -> GameId {
         GameId(Uuid::new_v4())
+    }
+}
+
+impl fmt::Display for GameId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 

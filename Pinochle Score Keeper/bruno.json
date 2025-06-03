@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "Pinochle Score Keeper",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

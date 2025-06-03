@@ -4,17 +4,17 @@ use crate::domain::{GameId, GameRepository, GameRepositoryError, Hand};
 use crate::infrastructure::InMemoryGameRepository;
 
 pub struct GetCurrentHand{
-    pub game_repo: Arc<Mutex<dyn GameRepository + Send + Sync>>
+    pub game_repo: Arc<dyn GameRepository + Send + Sync>
 }
 
 impl GetCurrentHand {
-    pub fn new(repo: Arc<Mutex<dyn GameRepository + Send + Sync>>) -> Self {
+    pub fn new(repo: Arc<dyn GameRepository + Send + Sync>) -> Self {
         Self {
             game_repo: repo
         }
     }
     pub async fn execute(&self, game_id: GameId) -> Result<Option<Hand>, GetCurrentHandError> {
-        let game = self.game_repo.lock().await.find_by_id(game_id).await?;
+        let game = self.game_repo.find_by_id(game_id).await?;
         
         if let Some(game) = game {
             return Ok(game.current_hand())

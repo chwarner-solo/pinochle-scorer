@@ -4,22 +4,22 @@ use crate::domain::{Game, GameError, GameId, GameRepository, GameRepositoryError
 use crate::infrastructure::InMemoryGameRepository;
 
 pub struct RecordBid {
-    pub game_repo: Arc<Mutex<dyn GameRepository + Send + Sync>>
+    pub game_repo: Arc<dyn GameRepository + Send + Sync>
 }
 
 impl RecordBid {
-    pub fn new(repo: Arc<Mutex<dyn GameRepository + Send + Sync>>) -> Self {
+    pub fn new(repo: Arc<dyn GameRepository + Send + Sync>) -> Self {
         Self {
             game_repo: repo
         }
     }
 
     pub async fn execute(&self, game_id: GameId, player: Player, bid: u32) -> Result<Game, RecordBidError> {
-        let mut game = self.game_repo.lock().await.find_by_id(game_id).await?;
+        let mut game = self.game_repo.find_by_id(game_id).await?;
         match game {
             Some(game) => {
                 let game = game.record_bid(player, bid)?;
-                self.game_repo.lock().await.save(game.clone()).await?;
+                self.game_repo.save(game.clone()).await?;
                 Ok(game)
             },
             None => Err(RecordBidError::GameNotFound)

@@ -1,34 +1,38 @@
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::domain::{Game, GameError, GameId, GameRepository, GameRepositoryError, Suit};
-use crate::infrastructure::InMemoryGameRepository;
+use crate::application::RecordTricksError;
+use crate::domain::{Game, GameError, GameId, GameRepository, GameRepositoryError};
 
-pub struct DeclareTrump {
+pub struct StartNewHand {
     pub game_repo: Arc<dyn GameRepository + Send + Sync>
 }
 
-impl DeclareTrump {
-    pub fn new(repo: Arc<dyn GameRepository + Send + Sync>) -> Self {
+impl StartNewHand {
+    pub fn new(game_repo: Arc<dyn GameRepository + Send + Sync>) -> Self {
         Self {
-            game_repo: repo
+             game_repo,
         }
     }
-
-    pub async fn execute(&self, game_id: GameId, trump: Suit) -> Result<Game, DeclareTrumpError> {
+    
+    pub async fn execute(&self, game_id: GameId) -> Result<Game, StartNewHandError>
+    {
         let game = self.game_repo.find_by_id(game_id).await?;
+        
         match game {
             Some(game) => {
-                let game = game.declare_trump(trump)?;
+                let game = game.start_new_hand()?;
                 self.game_repo.save(game.clone()).await?;
                 Ok(game)
             },
-            None => Err(DeclareTrumpError::GameNotFound)
+            None => Err(StartNewHandError::GameNotFound)
         }
+        
+        
     }
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum DeclareTrumpError {
+pub enum StartNewHandError {
     #[error("Game not found")]
     GameNotFound,
     #[error("Repository error: {0}")]

@@ -26,32 +26,20 @@ impl GameRepository for InMemoryGameRepository {
     }
 
     async fn save(&self, game: Game) -> Result<(), GameRepositoryError> {
-        if let Some(orig) = self.games.get(&game.id()) {
-            let updated_game = orig.value()
-                .clone()
-                .with_current_hand(game.current_hand())
-                .with_state(game.state());
+        if self.games.contains_key(&game.id()) {
+            let updated_game = {
+                let orig = self.games.get(&game.id()).unwrap();
+                orig.value()
+                    .clone()
+                    .with_current_hand(game.current_hand())
+                    .with_state(game.state())
+            };
             self.games.insert(game.id(), updated_game);
         } else {
             self.games.insert(game.id(), game);
         }
 
         Ok(())
-    }
-}
-
-#[async_trait::async_trait]
-impl GameRepository for Arc<Mutex<InMemoryGameRepository>> {
-    async fn find_all(&self) -> Result<Vec<Game>, GameRepositoryError> {
-        self.lock().await.find_all().await
-    }
-
-    async fn find_by_id(&self, id: GameId) -> Result<Option<Game>, GameRepositoryError> {
-        self.lock().await.find_by_id(id).await
-    }
-
-    async fn save(&self, game: Game) -> Result<(), GameRepositoryError> {
-        self.lock().await.save(game).await
     }
 }
 

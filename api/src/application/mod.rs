@@ -1,4 +1,5 @@
 pub mod start_new_game;
+pub mod start_new_hand;
 pub mod record_bid;
 pub mod declare_trump;
 pub mod record_meld;
@@ -8,6 +9,7 @@ pub mod get_current_hand;
 pub mod get_running_total;
 
 pub use start_new_game::{StartNewGame, StartNewGameError};
+pub use start_new_hand::{StartNewHand, StartNewHandError};
 pub use record_bid::{RecordBid, RecordBidError};
 pub use declare_trump::{DeclareTrump, DeclareTrumpError};
 pub use record_meld::{RecordMeld, RecordMeldError};

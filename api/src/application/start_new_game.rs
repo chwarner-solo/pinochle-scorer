@@ -3,19 +3,20 @@ use tokio::sync::Mutex;
 use crate::domain::{Game, GameRepository, GameRepositoryError, Player};
 
 pub struct StartNewGame {
-    pub game_repo: Arc<Mutex<dyn GameRepository + Send + Sync>>
+    pub game_repo: Arc<dyn GameRepository + Send + Sync>
 }
 
 impl StartNewGame {
-    pub fn new(repo: Arc<Mutex<dyn GameRepository + Send + Sync>>) -> Self {
+    pub fn new(repo: Arc<dyn GameRepository + Send + Sync>) -> Self {
         Self {
             game_repo: repo
         }
     }
 
     pub async fn execute(&self, dealer: Player) -> Result<Game, StartNewGameError> {
+        
         let game = Game::new(dealer);
-        self.game_repo.lock().await.save(game.clone()).await?;
+        self.game_repo.save(game.clone()).await?;
         
         Ok(game)
     }
