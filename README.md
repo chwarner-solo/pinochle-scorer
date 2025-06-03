@@ -11,8 +11,10 @@ Pinochle Scorer is a Rust-based application for tracking and scoring games of Pi
 - Robust error handling for invalid operations
 
 ## Project Structure
-- `api/` - Main application code, including domain logic
+- `api/` - Main application code, including domain, application, and infrastructure layers
 - `api/src/domain/` - Core entities: Game, Hand, Player, Team, etc.
+- `api/src/application/` - Application services, orchestrates domain logic and coordinates use cases
+- `api/src/infrastructure/` - Infrastructure and adapters (e.g., persistence, external APIs)
 - `doc/requirements.md` - Current requirements extracted from tests
 - `doc/adr/` - Architecture Decision Records
 

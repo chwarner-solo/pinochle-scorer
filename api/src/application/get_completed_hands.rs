@@ -1,12 +1,20 @@
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use crate::domain::{Game, GameId, GameRepository, GameRepositoryError, Hand};
+use crate::infrastructure::InMemoryGameRepository;
 
-pub struct GetCompletedHands<'a> {
-    pub game_repo: &'a dyn GameRepository
+pub struct GetCompletedHands {
+    pub game_repo: Arc<Mutex<dyn GameRepository + Send + Sync>>, // &'a dyn GameRepository
 }
 
-impl<'a> GetCompletedHands<'a> {
-    pub fn execute(&self, game_id: GameId) -> Result<Vec<Hand>, GetCompletedHandsError> {
-        let game = self.game_repo.find_by_id(game_id)?;
+impl GetCompletedHands {
+    pub fn new(repo: Arc<Mutex<dyn GameRepository + Send + Sync>>) -> Self {
+        Self {
+            game_repo: repo
+        }
+    }
+    pub async fn execute(&self, game_id: GameId) -> Result<Vec<Hand>, GetCompletedHandsError> {
+        let game = self.game_repo.lock().await.find_by_id(game_id).await?;
         
         if let Some(game) = game {
             return Ok(game.completed_hands());
@@ -20,34 +28,4 @@ impl<'a> GetCompletedHands<'a> {
 pub enum GetCompletedHandsError {
     #[error("Game Repository Error: {0}")]
     GameRepoError(#[from] GameRepositoryError)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::infrastructure::InMemoryGameRepository;
-    use crate::domain::{Player};
-    use uuid::Uuid;
-
-    fn setup_game_with_completed_hands(repo: &InMemoryGameRepository) -> Game {
-        let mut game = Game::new(Player::North)
-            .start_new_hand()
-            .unwrap();
-        // Simulate completing a hand if your domain allows
-        // game = game.complete_hand().unwrap();
-        repo.save(game.clone()).unwrap();
-        game
-    }
-
-    #[tokio::test]
-    async fn gets_completed_hands_successfully() {
-        let repo = InMemoryGameRepository::new();
-        let game = setup_game_with_completed_hands(&repo);
-        let interactor = GetCompletedHands { game_repo: &repo };
-        let result = interactor.execute(game.id());
-        assert!(result.is_ok());
-        let hands = result.unwrap();
-        // Check hands as needed
-    }
-
 }

@@ -1,9 +1,10 @@
 use crate::domain::{Hand, HandId};
 
-pub trait HandRepository {
-    fn find_all(&self) -> Result<Vec<Hand>, HandRepositoryError>;
-    fn find_by_id(&self, id: HandId) -> Result<Option<Hand>, HandRepositoryError>;
-    fn save(&self, hand: Hand) -> Result<(), HandRepositoryError>;
+#[async_trait::async_trait]
+pub trait HandRepository: Send + Sync {
+    async fn find_all(&self) -> Result<Vec<Hand>, HandRepositoryError>;
+    async fn find_by_id(&self, id: HandId) -> Result<Option<Hand>, HandRepositoryError>;
+    async fn save(&self, hand: Hand) -> Result<(), HandRepositoryError>;
 }
 
 #[derive(Debug, thiserror::Error)]
