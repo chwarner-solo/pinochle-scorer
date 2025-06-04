@@ -17,6 +17,18 @@ pub enum Suit {
     NoMarriage
 }
 
+impl fmt::Display for Suit {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Suit::Spades => write!(f, "Spades"),
+            Suit::Hearts => write!(f, "Hearts"),
+            Suit::Clubs => write!(f, "Clubs"),
+            Suit::Diamonds => write!(f, "Diamonds"),
+            Suit::NoMarriage => write!(f, "NoMarriage"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Player {
     North,
@@ -39,6 +51,17 @@ impl Player {
             Player::West => Player::North,
             Player::North => Player::East,
             Player::East => Player::South,
+        }
+    }
+}
+
+impl fmt::Display for Player {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Player::North => write!(f, "North"),
+            Player::South => write!(f, "South"),
+            Player::East => write!(f, "East"),
+            Player::West => write!(f, "West"),
         }
     }
 }

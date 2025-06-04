@@ -39,10 +39,22 @@ impl Hand {
 
     pub fn bidder(&self) -> Option<Player> {
         match self.state {
-            HandState::WaitingForTrump { bidder, .. } => Some(bidder),
-            HandState::NoMarriage { bidder, .. } => Some(bidder),
-            HandState::WaitingForMeld { bidder, .. } => Some(bidder),
-            HandState::WaitingForTricks { bidder, .. } => Some(bidder),
+            HandState::WaitingForTrump { bidder, .. } => {
+                tracing::info!("Waiting for Trump, Bidder: {:?} ", bidder);
+                Some(bidder)
+            },
+            HandState::NoMarriage { bidder, .. } => {
+                tracing::info!("No Marriage,Bidder: {:?} ", bidder);
+                Some(bidder)
+            },
+            HandState::WaitingForMeld { bidder, .. } => {
+                tracing::info!("Waiting for Meld, Bidder:  {:?} ", bidder);
+                Some(bidder)
+            },
+            HandState::WaitingForTricks { bidder, .. } => {
+                tracing::info!("Waiting for Tricks, Bidder:  {:?} ", bidder);
+                Some(bidder)
+            },
             _ => None
         }
     }
@@ -92,6 +104,20 @@ impl Hand {
         match self.state {
             HandState::Completed { them_meld, .. } => them_meld,
             HandState::WaitingForTricks { them_meld, .. } => them_meld,
+            _ => None
+        }
+    }
+
+    pub fn us_tricks(&self) -> Option<u32> {
+        match self.state {
+            HandState::Completed { us_tricks, .. } => us_tricks,
+            _ => None
+        }
+    }
+
+    pub fn them_tricks(&self) -> Option<u32> {
+        match self.state {
+            HandState::Completed { them_tricks, .. } => them_tricks,
             _ => None
         }
     }

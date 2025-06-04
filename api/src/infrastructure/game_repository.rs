@@ -29,11 +29,15 @@ impl GameRepository for InMemoryGameRepository {
         if self.games.contains_key(&game.id()) {
             let updated_game = {
                 let orig = self.games.get(&game.id()).unwrap();
+
+                tracing::info!("updated current hand game: {:#?}", game.current_hand());
                 orig.value()
                     .clone()
                     .with_current_hand(game.current_hand())
                     .with_state(game.state())
+
             };
+            tracing::info!("updated current hand: saving: {:#?}", updated_game.current_hand());
             self.games.insert(game.id(), updated_game);
         } else {
             self.games.insert(game.id(), game);

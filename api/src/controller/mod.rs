@@ -23,7 +23,7 @@ use uuid::Uuid;
 mod data_transfer;
 
 use data_transfer::{StartNewGameRequest, StartNewGameResponse};
-use crate::controller::data_transfer::{CompletedHandsResponse, HandResponse, RunningTotalResponse, StartNewHandRequest, StartNewHandResponse};
+use crate::controller::data_transfer::{CompletedHandsResponse, DeclareTrumpRequest, DeclareTrumpResponse, HandResponse, RecordBidRequest, RecordBidResponse, RecordMeldRequest, RecordMeldResponse, RecordTricksRequest, RecordTricksResponse, RunningTotalResponse, StartNewHandRequest, StartNewHandResponse};
 
 #[debug_handler]
 // --- Handler stubs ---
@@ -93,21 +93,50 @@ pub async fn get_running_total_handler(State(state): State<AppState>, Path(game_
     Ok(Json(dto))
 }
 
-pub async fn record_bid_handler(State(_state): State<AppState>, Path(game_id): Path<String>) -> Json<serde_json::Value> {
+pub async fn record_bid_handler(State(state): State<AppState>, Path(game_id): Path<String>, Json(payload): Json<RecordBidRequest>) -> Result<Json<RecordBidResponse>, AppError> {
     tracing::info!("record_bid_handler");
-    Json(json!({"message": "record_bid stub", "game_id": game_id}))
+    let AppState { record_bid, .. } = state;
+    let id = Uuid::parse_str(&game_id).map_err(|e| AppError::GetParseUuidError(game_id.clone()))?;
+
+    let game = record_bid.execute(GameId(id), payload.player, payload.bid).await?;
+    let dto = RecordBidResponse::from(&game);
+
+    Ok(Json(dto))
 }
 
-pub async fn declare_trump_handler(State(_state): State<AppState>, Path(game_id): Path<String>) -> Json<serde_json::Value> {
-    Json(json!({"message": "declare_trump stub", "game_id": game_id}))
+pub async fn declare_trump_handler(State(state): State<AppState>, Path(game_id): Path<String>, Json(payload): Json<DeclareTrumpRequest>) -> Result<Json<DeclareTrumpResponse>, AppError> {
+    let AppState { declare_trump, .. } = state;
+    let id = Uuid::parse_str(&game_id).map_err(|e| AppError::GetParseUuidError(game_id.clone()))?;
+
+    let game = declare_trump.execute(GameId(id), payload.trump).await?;
+
+    let dto = DeclareTrumpResponse::from(&game);
+
+    Ok(Json(dto))
 }
 
-pub async fn record_meld_handler(State(_state): State<AppState>, Path(game_id): Path<String>) -> Json<serde_json::Value> {
-    Json(json!({"message": "record_meld stub", "game_id": game_id}))
+
+#[debug_handler]
+pub async fn record_meld_handler(State(state): State<AppState>, Path(game_id): Path<String>, Json(payload): Json<RecordMeldRequest>) -> Result<Json<RecordMeldResponse>, AppError> {
+    let AppState { record_meld, .. } = state;
+    let id = Uuid::parse_str(&game_id).map_err(|e| AppError::GetParseUuidError(game_id.clone()))?;
+
+    let game = record_meld.execute(GameId(id), payload.us_meld, payload.them_meld).await?;
+
+    let dto = RecordMeldResponse::from(&game);
+
+    Ok(Json(dto))
 }
 
-pub async fn record_tricks_handler(State(_state): State<AppState>, Path(game_id): Path<String>) -> Json<serde_json::Value> {
-    Json(json!({"message": "record_tricks stub", "game_id": game_id}))
+pub async fn record_tricks_handler(State(state): State<AppState>, Path(game_id): Path<String>, Json(payload): Json<RecordTricksRequest>) -> Result<Json<RecordTricksResponse>, AppError> {
+    let AppState { record_tricks, .. } = state;
+    let id = Uuid::parse_str(&game_id).map_err(|e| AppError::GetParseUuidError(game_id.clone()))?;
+
+    let game = record_tricks.execute(GameId(id), payload.us_tricks, payload.them_tricks).await?;
+
+    let dto = RecordTricksResponse::from(&game);
+
+    Ok(Json(dto))
 }
 
 // --- Router setup ---
