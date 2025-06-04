@@ -55,6 +55,10 @@ impl Hand {
                 tracing::info!("Waiting for Tricks, Bidder:  {:?} ", bidder);
                 Some(bidder)
             },
+            HandState::Completed { bidder, .. } => {
+                tracing::info!("Completed, Bidder:  {:?} ", bidder);
+                Some(bidder)
+            },
             _ => None
         }
     }
@@ -174,48 +178,39 @@ impl Hand {
         let us_meld = Hand::validate_points(us);
         let them_meld = Hand::validate_points(them);
 
-
         match self.state {
             HandState::WaitingForMeld { bidder: current_bidder, bid_amount, trump } => {
-
                 let bidding_team = current_bidder.team();
-                let bidding_team_meld = match bidding_team {
-                    Team::Us => us_meld,
-                    Team::Them => them_meld
-                };
+                let bidding_team_meld = Self::team_meld(bidding_team, us_meld, them_meld);
 
                 if bidding_team_meld.is_none() {
-                    let (us_score, them_score) = match bidding_team {
-                        Team::Us => (-(bid_amount as i32), them_meld.unwrap_or(0) as i32),
-                        Team::Them => (us_meld.unwrap_or(0) as i32, -(bid_amount as i32))
-                    };
-
-                    Ok(Self {
+                    let (us_score, them_score) = Self::failed_meld_scores(bidding_team, bid_amount, us_meld, them_meld);
+                    return Ok(Self {
                         state: HandState::Completed {
                             bidder: current_bidder,
                             bid_amount,
                             trump,
-                            us_meld: us_meld,
-                            them_meld: them_meld,
+                            us_meld,
+                            them_meld,
                             us_tricks: None,
                             them_tricks: None,
                             us_total: Some(us_score),
-                            them_total:Some(them_score)
+                            them_total: Some(them_score),
                         },
                         ..self.clone()
-                    })
-                } else {
-                    Ok(Self {
-                        state: HandState::WaitingForTricks {
-                            bidder: current_bidder,
-                            bid_amount,
-                            trump,
-                            us_meld,
-                            them_meld
-                        },
-                        ..self.clone()
-                    })
+                    });
                 }
+
+                Ok(Self {
+                    state: HandState::WaitingForTricks {
+                        bidder: current_bidder,
+                        bid_amount,
+                        trump,
+                        us_meld,
+                        them_meld,
+                    },
+                    ..self.clone()
+                })
             },
             HandState::NoMarriage { bidder: current_bidder, bid_amount } => {
                 Ok(Self {
@@ -228,12 +223,26 @@ impl Hand {
                         us_tricks: None,
                         them_tricks: None,
                         us_total: Some(-(bid_amount as i32)),
-                        them_total: Some(them_meld.unwrap_or(0) as i32)
+                        them_total: Some(them_meld.unwrap_or(0) as i32),
                     },
                     ..self.clone()
                 })
             },
-            _ => Err(HandError::InvalidStateTransition("Hand is not waiting for meld".to_string()))
+            _ => Err(HandError::InvalidStateTransition("Hand is not waiting for meld".to_string())),
+        }
+    }
+
+    fn team_meld(team: Team, us_meld: Option<u32>, them_meld: Option<u32>) -> Option<u32> {
+        match team {
+            Team::Us => us_meld,
+            Team::Them => them_meld,
+        }
+    }
+
+    fn failed_meld_scores(team: Team, bid_amount: u32, us_meld: Option<u32>, them_meld: Option<u32>) -> (i32, i32) {
+        match team {
+            Team::Us => (-(bid_amount as i32), them_meld.unwrap_or(0) as i32),
+            Team::Them => (us_meld.unwrap_or(0) as i32, -(bid_amount as i32)),
         }
     }
 
@@ -243,49 +252,97 @@ impl Hand {
             return Err(HandError::InvalidTricks(us, them));
         }
 
-        let us_tricks = Hand::validate_points(us);
-        let them_tricks = Hand::validate_points(them);
+        let HandState::WaitingForTricks { bidder, bid_amount, trump, us_meld, them_meld } = self.state else {
+            return Err(HandError::InvalidStateTransition("Hand is not waiting for tricks".to_string()));
+        };
 
-        match self.state {
-            HandState::WaitingForTricks { bidder: current_bidder, bid_amount, trump, us_meld, them_meld } => {
+        let bidding_team = bidder.team();
+        
+        let required_tricks = Self::required_tricks(bid_amount, us_meld, them_meld, bidding_team);
+        
+        let bidder_tricks = match bidding_team {
+            Team::Us => us,
+            Team::Them => them
+        };
 
-                let mut us_total = if us_tricks.is_none() { 0 } else { us_meld.unwrap_or(0) as i32 + us_tricks.unwrap_or(0) as i32 };
-                let mut them_total = if them_tricks.is_none() {0 } else { them_meld.unwrap_or(0) as i32 + them_tricks.unwrap_or(0) as i32};
+        let us_total = Self::calculate_team_total(us_meld.unwrap_or(0), us);
+        let them_total = Self::calculate_team_total(them_meld.unwrap_or(0), them);
+        
+        let (us_total, them_total) = Self::apply_bidding_penalty(
+            bidding_team, 
+            us_total, 
+            them_total, 
+            bid_amount,
+            bidder_tricks,
+            required_tricks);
+        
+        let us_meld = Self::normalize_meld(us_meld);
+        let them_meld =Self::normalize_meld(them_meld);
+        
+        let us_tricks = Some(us);
+        let them_tricks = Some(them);
+        
+        let us_total= Self::normalize_total(us_total);
+        let them_total = Self::normalize_total(them_total);
 
-                let bidding_team = current_bidder.team();
-                let bidding_meld = match bidding_team {
-                    Team::Us => us_meld.unwrap_or(0),
-                    Team::Them => them_meld.unwrap_or(0)
-                };
-                let required_tricks = std::cmp::max(bid_amount - bidding_meld, 20);
-                let bidding_tricks = match bidding_team {
-                    Team::Us => us_tricks.unwrap_or(0),
-                    Team::Them => them_tricks.unwrap_or(0)
-                };
 
-                if bidding_tricks < required_tricks {
-                    match bidding_team {
-                        Team::Us => us_total = -(bid_amount as i32),
-                        Team::Them => them_total = -(bid_amount as i32)
-                    }
-                }
-
-                Ok(Self {
-                    state: HandState::Completed {
-                        bidder: current_bidder,
-                        bid_amount,
-                        trump,
-                        us_meld,
-                        them_meld,
-                        us_tricks: us_tricks,
-                        them_tricks: them_tricks,
-                        us_total: if (us_total == 0) { None } else { Some(us_total) },
-                        them_total: if (them_total == 0) { None } else {  Some(them_total) }
-                    },
-                    ..self.clone()
-                })
+        Ok(Self {
+            state: HandState::Completed {
+                bidder,
+                bid_amount,
+                trump,
+                us_meld,
+                them_meld,
+                us_tricks,
+                them_tricks,
+                us_total,
+                them_total
             },
-            _ => Err(HandError::InvalidStateTransition("Hand is not waiting for tricks".to_string()))
+            ..self.clone()
+        })
+    }
+
+    fn required_tricks(bid_amount: u32, us_meld: Option<u32>, them_meld: Option<u32>, bidding_team: Team) -> u32 {
+        match bidding_team {
+            Team::Us => (std::cmp::max((bid_amount as i32) - (us_meld.unwrap_or(0) as i32), 20)) as u32,
+            Team::Them => (std::cmp::max((bid_amount as i32) - (them_meld.unwrap_or(0) as i32), 20)) as u32
+        } 
+    }
+
+    fn normalize_meld(meld: Option<u32>) ->  Option<u32> {
+        match meld {
+            Some(m) if m < 20 => None,
+            other => other,
+        }
+    }
+    
+    fn normalize_total(total: i32) -> Option<i32 >{
+        if total == 0 { None } else { Some(total)}
+    }
+
+    fn calculate_team_total(meld: u32, tricks: u32) -> i32 {
+        if tricks < 20 {
+            0
+        } else if meld < 20 {
+            tricks as i32
+        } else {
+            (meld + tricks) as i32
+        }
+    }
+    
+    fn apply_bidding_penalty(
+        bidding_team: Team, 
+        us_total: i32, them_total: i32, 
+        bid_amount: u32, bidding_tricks: u32, 
+        required_tricks: u32) -> (i32, i32) 
+    {
+        if bidding_tricks < required_tricks {
+            match bidding_team {
+                Team::Us => (-(bid_amount as i32), them_total),
+                Team::Them => (us_total, -(bid_amount as i32))
+            }
+        } else {
+            (us_total, them_total)
         }
     }
 
@@ -728,7 +785,7 @@ mod tests {
         match new_hand.state() {
             HandState::Completed { us_tricks, them_tricks, us_total, them_total, .. } => {
                 assert_eq!(us_tricks, Some(36));
-                assert_eq!(them_tricks, None);
+                assert_eq!(them_tricks, Some(14));
                 assert_eq!(us_total, Some(60));
                 assert_eq!(them_total, None);
             },

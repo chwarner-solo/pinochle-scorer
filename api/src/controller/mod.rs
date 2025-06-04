@@ -1,4 +1,3 @@
-use std::error::Error;
 use std::sync::Arc;
 use axum::{
     Router,
@@ -11,8 +10,16 @@ use axum::{
     extract::{Path, State},
     debug_handler
 };
-use tokio::sync::Mutex;
-use crate::application::{DeclareTrump, DeclareTrumpError, GetCompletedHands, GetCompletedHandsError, GetCurrentHand, GetCurrentHandError, GetRunningTotal, GetRunningTotalError, RecordBid, RecordBidError, RecordMeld, RecordMeldError, RecordTricks, RecordTricksError, StartNewGame, StartNewGameError, StartNewHand, StartNewHandError};
+use crate::application::{
+    DeclareTrump, DeclareTrumpError, 
+    GetCompletedHands, GetCompletedHandsError, 
+    GetCurrentHand, GetCurrentHandError, 
+    GetRunningTotal, GetRunningTotalError, 
+    RecordBid, RecordBidError, 
+    RecordMeld, RecordMeldError, 
+    RecordTricks, RecordTricksError, 
+    StartNewGame, StartNewGameError, 
+    StartNewHand, StartNewHandError};
 use crate::AppState;
 use crate::domain::{GameId, GameRepository};
 use crate::infrastructure::InMemoryGameRepository;
@@ -23,7 +30,16 @@ use uuid::Uuid;
 mod data_transfer;
 
 use data_transfer::{StartNewGameRequest, StartNewGameResponse};
-use crate::controller::data_transfer::{CompletedHandsResponse, DeclareTrumpRequest, DeclareTrumpResponse, HandResponse, RecordBidRequest, RecordBidResponse, RecordMeldRequest, RecordMeldResponse, RecordTricksRequest, RecordTricksResponse, RunningTotalResponse, StartNewHandRequest, StartNewHandResponse};
+use crate::controller::data_transfer::{
+    CompletedHandsResponse, 
+    DeclareTrumpRequest, DeclareTrumpResponse, 
+    HandResponse, 
+    RecordBidRequest, RecordBidResponse, 
+    RecordMeldRequest, RecordMeldResponse, 
+    RecordTricksRequest, RecordTricksResponse, 
+    RunningTotalResponse, 
+    StartNewHandRequest, StartNewHandResponse
+};
 
 #[debug_handler]
 // --- Handler stubs ---

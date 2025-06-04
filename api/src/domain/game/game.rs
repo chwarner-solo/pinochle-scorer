@@ -159,7 +159,13 @@ impl Game {
         let (us_total, them_total) = self.running_totals();
         us_total >= 500 || them_total >= 500
     }
-
+    
+    fn bidder_winner_if_applicable(&self) -> Option<Team> {
+        self.completed_hands
+            .last()
+            .and_then(|hand| hand.bidder().map(|bidder| bidder.team()))
+    }
+    
     pub fn winner(&self) -> Option<Team> {
         if !self.is_game_complete() {
             return None;
@@ -167,21 +173,11 @@ impl Game {
 
         let (us_total, them_total) = self.running_totals();
 
-        if us_total >= 500 && them_total >= 500 {
-            if let Some(last_hand) = self.completed_hands.last() {
-                if let Some(bidder) = last_hand.bidder() {
-                    return Some(bidder.team())
-                }
-            }
-            if us_total > them_total {
-                Some(Team::Us)
-            } else {
-                Some(Team::Them)
-            }
-        } else if us_total >= 500 {
-            Some(Team::Us)
-        } else {
-            Some(Team::Them)
+        match (us_total >= 500, them_total >= 500) {
+            (true, false) => Some(Team::Us),
+            (false, true) => Some(Team::Them),
+            (true, true) => self.bidder_winner_if_applicable(),
+            _ => None
         }
     }
 }
