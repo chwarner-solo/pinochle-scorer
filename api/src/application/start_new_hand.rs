@@ -24,7 +24,7 @@ impl StartNewHand {
                 self.game_repo.save(game.clone()).await?;
                 Ok(game)
             },
-            None => Err(StartNewHandError::GameNotFound)
+            None => Err(StartNewHandError::GameNotFound(game_id))
         }
         
         
@@ -33,8 +33,8 @@ impl StartNewHand {
 
 #[derive(Debug, thiserror::Error)]
 pub enum StartNewHandError {
-    #[error("Game not found")]
-    GameNotFound,
+    #[error("Game not found: {0}")]
+    GameNotFound(GameId),
     #[error("Repository error: {0}")]
     RepositoryError(#[from] GameRepositoryError),
     #[error("Game error: {0}")]

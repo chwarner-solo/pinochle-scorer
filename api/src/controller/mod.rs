@@ -21,13 +21,15 @@ use crate::application::{
     StartNewGame, StartNewGameError, 
     StartNewHand, StartNewHandError};
 use crate::AppState;
-use crate::domain::{GameId, GameRepository};
+use crate::domain::{GameId, GameRepository, GameRepositoryError};
 use crate::infrastructure::InMemoryGameRepository;
 use serde_json::json;
 use thiserror::Error;
 use uuid::Uuid;
 
 mod data_transfer;
+mod error_response;
+mod infrastructure;
 
 use data_transfer::{StartNewGameRequest, StartNewGameResponse};
 use crate::controller::data_transfer::{
@@ -229,10 +231,37 @@ pub enum AppError {
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let (status, error_message, error_code) = match self {
-            AppError::StartNewGameError(e) => (StatusCode::BAD_REQUEST, e.to_string(), 400),
-            AppError::StartNewHandError(e) => (StatusCode::BAD_REQUEST, e.to_string(), 400),
-            AppError::RecordBidError(e) => (StatusCode::BAD_REQUEST, e.to_string(), 400),
-            AppError::DeclareTrumpError(e) => (StatusCode::BAD_REQUEST, e.to_string(), 400),
+            AppError::StartNewGameError(e) => match e {
+                StartNewGameError::GameRepositoryError(re) => match re {
+                    GameRepositoryError::GameDoesNotExist(gameId) => (StatusCode::NOT_FOUND, gameId.to_string(), 404),
+                    _ => (StatusCode::INTERNAL_SERVER_ERROR, re.to_string(), 409),
+                }
+                _ => (StatusCode::BAD_REQUEST, e.to_string(), 400),
+            }
+            AppError::StartNewHandError(e) => match e {
+                StartNewHandError::GameNotFound(gre) => (StatusCode::INTERNAL_SERVER_ERROR, gre.to_string(), 500),
+                StartNewHandError::RepositoryError(gre) => match gre {
+                    GameRepositoryError::GameDoesNotExist(gameId) => (StatusCode::NOT_FOUND, gameId.to_string(), 404),
+                    _ => (StatusCode::INTERNAL_SERVER_ERROR, gre.to_string(), 500)
+                },
+                _ =>(StatusCode::BAD_REQUEST, e.to_string(), 400),
+            }
+            AppError::RecordBidError(e) => match e {
+                RecordBidError::GameNotFound(gre) => (StatusCode::INTERNAL_SERVER_ERROR, gre.to_string(), 500),
+                RecordBidError::RepositoryError(re) => match re {
+                    GameRepositoryError::GameDoesNotExist(gameId) => (StatusCode::NOT_FOUND, gameId.to_string(), 404),
+                    _ => (StatusCode::INTERNAL_SERVER_ERROR, re.to_string(), 500),
+                }
+                _ => (StatusCode::BAD_REQUEST, e.to_string(), 400),
+            }
+            AppError::DeclareTrumpError(e) => match e {
+                DeclareTrumpError::GameNotFound(game_id) => (StatusCode::NOT_FOUND, game_id.to_string(), 404),
+                DeclareTrumpError::RepositoryError(re) => match re {
+                    GameRepositoryError::GameDoesNotExist(gameId) => (StatusCode::NOT_FOUND, gameId.to_string(), 404),
+                    _ => (StatusCode::INTERNAL_SERVER_ERROR, re.to_string(), 500),
+                }
+                _ => (StatusCode::BAD_REQUEST, e.to_string(), 400),
+            }
             AppError::RecordMeldError(e) => (StatusCode::BAD_REQUEST, e.to_string(), 400),
             AppError::RecordTricksError(e) => (StatusCode::BAD_REQUEST, e.to_string(), 400),
             AppError::GetParseUuidError(e) => (StatusCode::BAD_REQUEST, e.to_string(), 400),
@@ -246,7 +275,7 @@ impl IntoResponse for AppError {
                 "code": error_code,
                 "message": error_message
             }
-            }));
+        }));
 
         (status, body).into_response()
     }

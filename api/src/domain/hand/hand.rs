@@ -248,26 +248,38 @@ impl Hand {
 
     pub fn record_tricks(self, us: u32, them: u32) -> Result<Self, HandError> {
 
+        tracing::info!("Validating tricks");
         if (us + them) != 50 {
             return Err(HandError::InvalidTricks(us, them));
         }
 
+        tracing::info!("Validated tricks {0} {1} {2}", us, them, 50);
+
+        tracing::info!("Validating hand state: {:?}", self.state);
+        
         let HandState::WaitingForTricks { bidder, bid_amount, trump, us_meld, them_meld } = self.state else {
             return Err(HandError::InvalidStateTransition("Hand is not waiting for tricks".to_string()));
         };
 
+        tracing::info!("Validated hand state");
+
+        tracing::info!("Identifying bidding team");
         let bidding_team = bidder.team();
-        
+
+        tracing::info!("Calculating required tricks");
         let required_tricks = Self::required_tricks(bid_amount, us_meld, them_meld, bidding_team);
-        
+
+        tracing::info!("Identifying tricks for bidding team");
         let bidder_tricks = match bidding_team {
             Team::Us => us,
             Team::Them => them
         };
 
+        tracing::info!("Calculating team totals");
         let us_total = Self::calculate_team_total(us_meld.unwrap_or(0), us);
         let them_total = Self::calculate_team_total(them_meld.unwrap_or(0), them);
-        
+
+        tracing::info!("Applying bidding penalty");
         let (us_total, them_total) = Self::apply_bidding_penalty(
             bidding_team, 
             us_total, 
@@ -275,17 +287,21 @@ impl Hand {
             bid_amount,
             bidder_tricks,
             required_tricks);
-        
+
+        tracing::info!("Normalizing melds");
         let us_meld = Self::normalize_meld(us_meld);
         let them_meld =Self::normalize_meld(them_meld);
-        
+
+        tracing::info!("Normalizing tricks");
         let us_tricks = Some(us);
         let them_tricks = Some(them);
-        
+
+        tracing::info!("Normalizing totals");
         let us_total= Self::normalize_total(us_total);
         let them_total = Self::normalize_total(them_total);
 
 
+        tracing::info!("Returning completed hand");
         Ok(Self {
             state: HandState::Completed {
                 bidder,

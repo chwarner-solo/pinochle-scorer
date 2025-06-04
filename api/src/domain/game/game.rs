@@ -53,24 +53,39 @@ impl Game {
         self
     }
 
+    pub(crate) fn with_completed_hands(&self, completed_hands: Vec<Hand>) -> Self {
+        Self {
+            completed_hands,
+            ..self.clone()
+        }
+    }
+    
     fn next_dealer(&self) -> Player {
         self.current_dealer.next_clockwise()
     }
 
     pub fn start_new_hand(&self) -> Result<Self, GameError> {
-        if self.state == GameState::InProgress {
+        if self.state == GameState::Completed {
             return Err(GameError::InvalidStateTransition(
                 "Cannot start new hand when game is already in progress".to_string()
             ));
         }
-        let new_hand = Hand::new(self.current_dealer);
-        Ok(
-            Self {
-                state: GameState::InProgress,
-                current_hand: Some(new_hand),
-                ..self.clone()
+        
+        match self.current_hand.clone() {
+            Some(hand) => {
+                Ok(self.complete_hand_and_start_new(hand))
+            },
+            None => {
+                let new_hand = Hand::new(self.current_dealer);
+                Ok(
+                    Self {
+                        state: GameState::InProgress,
+                        current_hand: Some(new_hand),
+                        ..self.clone()
+                    }
+                )
             }
-        )
+        }
     }
 
     pub fn running_totals(&self) -> (i32, i32) {
@@ -117,17 +132,11 @@ impl Game {
 
         let new_hand = current_hand.clone().record_meld(us, them)?;
 
-        match new_hand.state() {
-            HandState::Completed { .. } => {
-                Ok(self.complete_hand_and_start_new(new_hand))
-            },
-            _ => {
-                Ok(Game {
-                    current_hand: Some(new_hand),
-                    ..self.clone()
-                })
-            }
-        }
+        
+        Ok(Game {
+            current_hand: Some(new_hand),
+            ..self.clone()
+        })
     }
 
     pub fn record_tricks(&self, us: u32, them: u32) -> Result<Self, GameError> {
@@ -135,17 +144,26 @@ impl Game {
             .as_ref()
             .ok_or_else(|| GameError::InvalidOperation("No current hand to record tricks".to_string()))?;
 
+        tracing::info!("Recording tricks: {0} {1}", us, them);
         let new_hand = current_hand.clone().record_tricks(us, them)?;
-
-        Ok(self.complete_hand_and_start_new(new_hand))
+        
+        Ok(Game {
+            current_hand: Some(new_hand),
+            ..self.clone()
+        })
     }
 
     fn complete_hand_and_start_new(&self, new_hand: Hand) -> Game {
+        tracing::info!("Completing hand: {:?}", new_hand);
+        
+        tracing::info!("Completed hands: {0}", self.completed_hands.len());
         let mut new_completed_hands = self.completed_hands.clone();
         new_completed_hands.push(new_hand);
 
         let next_dealer = self.next_dealer();
         let new_current_hand = Hand::new(next_dealer);
+        
+        tracing::info!("Completed hands: {:?}", new_completed_hands.len());
 
         Game {
             completed_hands: new_completed_hands,
@@ -206,6 +224,13 @@ impl Game {
 
         Game {
             completed_hands: new_completed_hands,
+            ..self.clone()
+        }
+    }
+    
+    pub fn completed_state(&self) -> Game {
+        Game {
+            completed_hands: self.completed_hands.clone(),
             ..self.clone()
         }
     }
@@ -445,9 +470,7 @@ mod tests {
         assert!(result.is_ok());
         let new_game = result.unwrap();
 
-        assert_eq!(new_game.completed_hands().len(), 1);
-        let completed_hand = &new_game.completed_hands()[0];
-        assert!(matches!(completed_hand.state(), HandState::Completed { .. }));
+        assert!(matches!(new_game.current_hand().unwrap().state(), HandState::Completed { .. }));
     }
 
     #[test]
@@ -479,11 +502,8 @@ mod tests {
 
         assert!(result.is_ok());
         let new_game = result.unwrap();
-
-        assert_eq!(new_game.completed_hands().len(), 1);
-        let completed_hand = &new_game.completed_hands()[0];
-
-        match completed_hand.state() {
+        
+        match new_game.current_hand().unwrap().state() {
             HandState::Completed { us_tricks, them_tricks, us_total, them_total, ..} => {
                 assert_eq!(us_tricks, Some(26));
                 assert_eq!(them_tricks, Some(24));
@@ -531,11 +551,8 @@ mod tests {
 
         assert!(result.is_ok());
         let new_game = result.unwrap();
-
-        assert_eq!(new_game.completed_hands().len(), 1);
-        let completed_hand = &new_game.completed_hands()[0];
-
-        match completed_hand.state() {
+        
+        match new_game.current_hand().unwrap().state() {
             HandState::Completed { us_total, them_total, .. } => {
                 assert_eq!(us_total, Some(-60));
                 assert_eq!(them_total, Some(52));
@@ -556,22 +573,7 @@ mod tests {
             _ => panic!("Expected InvalidOperation to be propagated")
         }
     }
-
-    #[test]
-    fn should_reject_start_new_hand_when_in_progress() {
-        let game = Game::new(Player::South)
-            .start_new_hand()
-            .unwrap();
-
-        let result = game.start_new_hand();
-
-        assert!(result.is_err());
-        match result.unwrap_err() {
-            GameError::InvalidStateTransition(_) => {},
-            _ => panic!("Expected InvalidOperation to be propagated")
-        }
-    }
-
+    
     #[test]
     fn should_complete_game_when_team_reaches_500_points() {
         let mut game = Game::new(Player::South);

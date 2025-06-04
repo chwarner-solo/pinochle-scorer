@@ -22,25 +22,31 @@ impl GameRepository for InMemoryGameRepository {
     }
 
     async fn find_by_id(&self, id: GameId) -> Result<Option<Game>, GameRepositoryError> {
+        if !self.games.contains_key(&id) {
+           return Err(GameRepositoryError::GameDoesNotExist(id));
+        }
         Ok(self.games.get(&id).map(|game| game.value().clone()))
     }
 
     async fn save(&self, game: Game) -> Result<(), GameRepositoryError> {
+
         if self.games.contains_key(&game.id()) {
             let updated_game = {
                 let orig = self.games.get(&game.id()).unwrap();
 
-                tracing::info!("updated current hand game: {:#?}", game.current_hand());
                 orig.value()
                     .clone()
                     .with_current_hand(game.current_hand())
                     .with_state(game.state())
+                    .with_completed_hands(game.completed_hands())
 
             };
-            tracing::info!("updated current hand: saving: {:#?}", updated_game.current_hand());
-            self.games.insert(game.id(), updated_game);
+
+            self.games.insert(game.id().clone(), updated_game);
+            tracing::info!("Updated game: {:#?}", self.find_by_id(game.id()).await?);
         } else {
-            self.games.insert(game.id(), game);
+            self.games.insert(game.id().clone(), game.clone());
+            tracing::info!("Inserted game: {:#?}", self.find_by_id(game.id()).await?);
         }
 
         Ok(())
@@ -83,7 +89,11 @@ mod tests {
     async fn find_by_id_nonexistent_returns_none() {
         let repo = InMemoryGameRepository::new();
         let id = GameId(Uuid::new_v4());
-        assert_eq!(repo.find_by_id(id).await.unwrap(), None);
+        let game = repo.find_by_id(id).await;
+        
+        assert!(game.is_err());
+        
+        assert_eq!(game.unwrap_err(), GameRepositoryError::GameDoesNotExist(id));
     }
 
 }

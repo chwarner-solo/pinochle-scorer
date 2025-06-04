@@ -1,7 +1,7 @@
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::domain::{Game, Hand, HandState, Player, Suit};
-use serde::{Serialize, Deserialize};
 use crate::application::RunningTotal;
+use crate::domain::{Game, Hand, Player, Suit};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct StartNewGameRequest {
@@ -40,11 +40,11 @@ pub struct StartNewHandResponse {
 
 impl From<&Game> for StartNewHandResponse {
     fn from(game: &Game) -> Self {
-        
+
         let Game {id,  .. } = game;
         let current_hand = game.current_hand();
         let dealer = game.current_dealer();
-        
+
         Self {
             game_id: game.id().0,
             dealer,
@@ -144,7 +144,7 @@ impl From<&Game> for DeclareTrumpResponse {
                     hand.state().to_string(),
                     hand.bidder().map(|p| p.to_string()).unwrap_or_default(),
                     hand.bid_amount(),
-                    ))
+                ))
             })
             .unwrap_or_else(|| ("".to_string(), "".to_string(), "".to_string(), None));
 
@@ -179,24 +179,24 @@ pub struct RecordMeldResponse {
 
 impl From<&Game> for RecordMeldResponse {
     fn from(value: &Game) -> Self {
-       let(bidder, bid_amount, trump, us_meld, them_meld, hand_state) = value
+        let(bidder, bid_amount, trump, us_meld, them_meld, hand_state) = value
             .current_hand()
-           .map(|h| (
-               h.bidder().map(|p| p.to_string()).unwrap_or_default(),
-               h.bid_amount(),
-               h.trump().map(|t| t.to_string()).unwrap_or_default(),
-               h.us_meld(),
-               h.them_meld(),
-               h.state().to_string()
-           ))
-           .unwrap_or_else(|| (
-               "".to_string(),
-               None,
-               "".to_string(),
-               None,
-               None,
-               "".to_string()
-               ));
+            .map(|h| (
+                h.bidder().map(|p| p.to_string()).unwrap_or_default(),
+                h.bid_amount(),
+                h.trump().map(|t| t.to_string()).unwrap_or_default(),
+                h.us_meld(),
+                h.them_meld(),
+                h.state().to_string()
+            ))
+            .unwrap_or_else(|| (
+                "".to_string(),
+                None,
+                "".to_string(),
+                None,
+                None,
+                "".to_string()
+            ));
 
         Self {
             game_id: value.id().0,
@@ -278,6 +278,7 @@ impl From<&Game> for RecordTricksResponse {
         }
     }
 }
+
 #[derive(Debug, Clone, Serialize)]
 pub struct HandResponse {
     id: Uuid,
@@ -331,4 +332,3 @@ impl From<Option<&Hand>> for HandResponse {
         })
     }
 }
-

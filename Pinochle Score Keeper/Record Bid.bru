@@ -1,0 +1,11 @@
+meta {
+  name: Record Bid
+  type: http
+  seq: 6
+}
+
+post {
+  url: http://localhost:3000/api/games/{{game_id}}/record_bid
+  body: none
+  auth: inherit
+}

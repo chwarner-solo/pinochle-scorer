@@ -20,6 +20,8 @@ impl RecordTricks {
             Some(existing_game) => {
                 let updated_game = existing_game.record_tricks(us, them)?;
                 self.game_repo.save(updated_game.clone()).await?;
+                
+                tracing::info!("Updated game: {:#?}", self.game_repo.find_by_id(game_id).await?);
                 Ok(updated_game)
             },
             None => Err(RecordTricksError::GameNotFound)

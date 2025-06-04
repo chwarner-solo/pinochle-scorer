@@ -7,7 +7,10 @@ pub trait GameRepository: Send + Sync {
     async fn save(&self, game: Game) -> Result<(), GameRepositoryError>;
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum GameRepositoryError {
-    
+    #[error("Game repository error: {0}")]
+    GameRepositoryError(String),
+    #[error("Game isn't found: {0}")]
+    GameDoesNotExist(GameId),
 }

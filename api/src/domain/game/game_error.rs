@@ -7,7 +7,5 @@ pub enum GameError {
     #[error("Invalid game operation: {0}")]
     InvalidOperation(String),
     #[error("Hand error: {0}")]
-    HandError(#[from] HandError),
-    #[error("Not implemented: {0}")]
-    NotImplemented(String)
+    HandError(#[from] HandError)
 }

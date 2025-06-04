@@ -22,15 +22,15 @@ impl DeclareTrump {
                 self.game_repo.save(game.clone()).await?;
                 Ok(game)
             },
-            None => Err(DeclareTrumpError::GameNotFound)
+            None => Err(DeclareTrumpError::GameNotFound(game_id))
         }
     }
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum DeclareTrumpError {
-    #[error("Game not found")]
-    GameNotFound,
+    #[error("Game not found: {0}")]
+    GameNotFound(GameId),
     #[error("Repository error: {0}")]
     RepositoryError(#[from] GameRepositoryError),
     #[error("Game error: {0}")]
