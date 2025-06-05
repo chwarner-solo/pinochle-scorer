@@ -8,6 +8,9 @@ use crate::domain::GameRepository;
 use crate::infrastructure::InMemoryGameRepository;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber;
+use tracing_subscriber::EnvFilter;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 
 mod domain;
 mod application;
@@ -41,20 +44,32 @@ impl App {
 #[tokio::main]
 async fn main() {
     // Set up tracing subscriber for logging
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::registry()
+        .with(
+            EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "debug,tower_http=debug,axum=debug".into()),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
 
-    let app = App::router()
-        .layer(
-            TraceLayer::new_for_http()
-                .make_span_with(|request: &axum::http::Request<_>| {
-                    tracing::info_span!("http_request", method = %request.method(), uri = %request.uri())
-                })
-                .on_response(|response: &axum::http::Response<_>, latency: std::time::Duration, _span: &tracing::Span| {
-                    tracing::info!(status = %response.status(), latency = ?latency, "response sent");
-                })
-        );
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await.unwrap();
+    let app = App::router();
 
-    tracing::info!("listening on http://127.0.0.1:3000");
+    print_routes();
+
+    println!("🚀 Server starting on http://localhost:3000");
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+
     axum::serve(listener, app).await.unwrap();
+}
+
+fn print_routes() {
+    println!("📍 Configured Routes:");
+    println!("  POST /api/games/");
+    println!("  GET  /api/games/:id/");
+    println!("  POST /api/games/:id/start_hand");
+    println!("  POST /api/games/:id/record_bid");
+    println!("  POST /api/games/:id/declare_trump");
+    println!("  POST /api/games/:id/record_meld");
+    println!("  POST /api/games/:id/record_tricks");
+    println!("  GET  /api/games/:id/running_total");
 }

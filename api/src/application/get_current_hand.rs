@@ -26,8 +26,8 @@ impl GetCurrentHand {
 
 #[derive(Debug, thiserror::Error)]
 pub enum GetCurrentHandError {
-    #[error("Game not found")]
-    GameNotFound,
+    #[error("Game not found: {0}")]
+    GameNotFound(GameId),
     #[error("Repository error: {0}")]
     RepositoryError(#[from] GameRepositoryError)
 }

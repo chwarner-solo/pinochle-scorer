@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 use axum::{
     Router,
     routing::{get, post},
@@ -10,6 +11,7 @@ use axum::{
     extract::{Path, State},
     debug_handler
 };
+use axum::http::{header, HeaderMap, HeaderValue, Method, Request};
 use crate::application::{
     DeclareTrump, DeclareTrumpError, 
     GetCompletedHands, GetCompletedHandsError, 
@@ -25,6 +27,9 @@ use crate::domain::{GameId, GameRepository, GameRepositoryError};
 use crate::infrastructure::InMemoryGameRepository;
 use serde_json::json;
 use thiserror::Error;
+use tower_http::cors::{Any, CorsLayer};
+use tower_http::trace::TraceLayer;
+use tracing::Span;
 use uuid::Uuid;
 
 mod data_transfer;
@@ -42,11 +47,23 @@ use crate::controller::data_transfer::{
     RunningTotalResponse, 
     StartNewHandRequest, StartNewHandResponse
 };
+use crate::controller::error_response::ToResponse;
+
+fn create_cors_layer() -> CorsLayer {
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
+    cors
+}
 
 #[debug_handler]
 // --- Handler stubs ---
-pub async fn start_new_game_handler(State(state): State<AppState>, Json(payload): Json<StartNewGameRequest>) -> Result<Json<StartNewGameResponse>, AppError> {
+pub async fn start_new_game_handler(State(state): State<AppState>, headers: HeaderMap, Json(payload): Json<StartNewGameRequest>) -> Result<Json<StartNewGameResponse>, AppError> {
 
+    tracing::info!("=== START NEW GAME HANDLER ===");
+    tracing::info!("All Headers: {:#?}", headers);
     tracing::info!("start_new_game_handler");
 
     let AppState { start_game, .. } = state;
@@ -195,10 +212,27 @@ pub fn router() -> Router {
 
 
     let router = Router::new()
-        .route("/api/games", post(start_new_game_handler))
+        .route("/api/games/", post(start_new_game_handler))
         .route("/api/games/start_hand", post(start_new_hand_handler))
         .nest("/api/games/{game_id}/", inner_router)
-        .with_state(state);
+        .with_state(state)
+        .layer(TraceLayer::new_for_http()
+            .make_span_with(|request: &Request<_>| {
+                tracing::info_span!(
+                    "http_request",
+                    method = ?request.method(),
+                    uri = ?request.uri(),
+                    headers = ?request.headers(),
+                )
+            })
+            .on_request(|_request: &Request<_>, _span: &Span| {
+                tracing::info!("Started processing request");
+            })
+            .on_response(|_response: &Response, latency: Duration, _span: &Span| {
+                tracing::info!("Finished processing request in {:?}", latency)
+            })
+        )
+        .layer(create_cors_layer());
 
     router
 }
@@ -231,43 +265,16 @@ pub enum AppError {
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let (status, error_message, error_code) = match self {
-            AppError::StartNewGameError(e) => match e {
-                StartNewGameError::GameRepositoryError(re) => match re {
-                    GameRepositoryError::GameDoesNotExist(gameId) => (StatusCode::NOT_FOUND, gameId.to_string(), 404),
-                    _ => (StatusCode::INTERNAL_SERVER_ERROR, re.to_string(), 409),
-                }
-                _ => (StatusCode::BAD_REQUEST, e.to_string(), 400),
-            }
-            AppError::StartNewHandError(e) => match e {
-                StartNewHandError::GameNotFound(gre) => (StatusCode::INTERNAL_SERVER_ERROR, gre.to_string(), 500),
-                StartNewHandError::RepositoryError(gre) => match gre {
-                    GameRepositoryError::GameDoesNotExist(gameId) => (StatusCode::NOT_FOUND, gameId.to_string(), 404),
-                    _ => (StatusCode::INTERNAL_SERVER_ERROR, gre.to_string(), 500)
-                },
-                _ =>(StatusCode::BAD_REQUEST, e.to_string(), 400),
-            }
-            AppError::RecordBidError(e) => match e {
-                RecordBidError::GameNotFound(gre) => (StatusCode::INTERNAL_SERVER_ERROR, gre.to_string(), 500),
-                RecordBidError::RepositoryError(re) => match re {
-                    GameRepositoryError::GameDoesNotExist(gameId) => (StatusCode::NOT_FOUND, gameId.to_string(), 404),
-                    _ => (StatusCode::INTERNAL_SERVER_ERROR, re.to_string(), 500),
-                }
-                _ => (StatusCode::BAD_REQUEST, e.to_string(), 400),
-            }
-            AppError::DeclareTrumpError(e) => match e {
-                DeclareTrumpError::GameNotFound(game_id) => (StatusCode::NOT_FOUND, game_id.to_string(), 404),
-                DeclareTrumpError::RepositoryError(re) => match re {
-                    GameRepositoryError::GameDoesNotExist(gameId) => (StatusCode::NOT_FOUND, gameId.to_string(), 404),
-                    _ => (StatusCode::INTERNAL_SERVER_ERROR, re.to_string(), 500),
-                }
-                _ => (StatusCode::BAD_REQUEST, e.to_string(), 400),
-            }
-            AppError::RecordMeldError(e) => (StatusCode::BAD_REQUEST, e.to_string(), 400),
-            AppError::RecordTricksError(e) => (StatusCode::BAD_REQUEST, e.to_string(), 400),
-            AppError::GetParseUuidError(e) => (StatusCode::BAD_REQUEST, e.to_string(), 400),
-            AppError::GetCompletedHandsError(e) => (StatusCode::BAD_REQUEST, e.to_string(), 400),
-            AppError::GetRunningTotalError(e) => (StatusCode::BAD_REQUEST, e.to_string(), 400),
-            AppError::GetCurrentHandError(e) => (StatusCode::BAD_REQUEST, e.to_string(), 400),
+            AppError::StartNewGameError(e) => e.to_response(),
+            AppError::StartNewHandError(e) => e.to_response(),
+            AppError::RecordBidError(e) => e.to_response(),
+            AppError::DeclareTrumpError(e) => e.to_response(),
+            AppError::RecordMeldError(e) => e.to_response(),
+            AppError::RecordTricksError(e) => e.to_response(),
+            AppError::GetCompletedHandsError(e) => e.to_response(),
+            AppError::GetCurrentHandError(e) => e.to_response(),
+            AppError::GetRunningTotalError(e) => e.to_response(),
+            _ => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string(), 500),
         };
 
         let body = Json(json!({
