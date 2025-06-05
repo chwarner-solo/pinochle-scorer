@@ -1,38 +1,50 @@
-import {Game, RunningTotal} from "../src/types/Games";
+import axios from "axios";
+import type {Game, RunningTotal} from "../types/Game.ts";
 
-const API_BASE = '/api';
+const API_HOST = import.meta.env.VITE_API_HOST;
+const API_BASE = `${API_HOST}/api/games`;
+
+const apiClient = axios.create({
+    baseURL: API_BASE,
+    headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+    },
+});
+
 
 export const gameApi = {
     async createGame(): Promise<Game> {
-        const response = await fetch(`${API_BASE}/games/`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
+        const response = await apiClient.post('/', {
+            dealer: 'South'
         });
 
-        if (!response.ok) throw new Error('Failed to create game');
-
-        return response.json();
+        return response.data;
     },
 
     async getGame(gameId: string): Promise<Game> {
-        const response = await fetch(`${API_BASE}/games/${gameId}`);
-        if (!response.ok) throw new Error('Failed to get game');
-        return response.json();
+        const response = await apiClient.get(`/${gameId}`);
+        return response.data;
     },
 
     async getRunningTotal(gameId: string) : Promise<RunningTotal> {
-        const response = await fetch(`${API_BASE}/games/${gameId}/running_total`);
-        if (!response.ok) throw new Error('Failed to get running total');
-        return response.json();
+        const response = await apiClient.get(`${gameId}/running_total`);
+
+        return response.data;
     },
 
     async startHand (gameId: string): Promise<Game> {
-        const response = await fetch(`${API_BASE}/games/start_hand`, {
-            method: 'POST',
+        const response = await apiClient.post(`/${gameId}/start_hand`);
+
+        return response.data;
+    },
+
+    async recordBid(gameId: string, bidder: string, amount: number) : Promise<Game> {
+        const response = await apiClient.post(`/${gameId}/record_bid`, {
+            bidder,
+            amount
         });
-        if (!response.ok) throw new Error('Failed to start hand');
-        return response.json();
+
+        return response.data;
     }
 }
