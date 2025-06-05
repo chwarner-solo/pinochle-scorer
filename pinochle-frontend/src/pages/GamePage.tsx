@@ -1,46 +1,35 @@
 import {useNavigate} from "react-router-dom";
 import {useGame} from "../hooks/useGame.ts";
-import {Container, Typography, Alert, Box, Card, CardContent, CircularProgress, Button} from "@mui/material";
+import {Container, Typography, Alert, Card, CardContent, CircularProgress, Button} from "@mui/material";
+import {useEffect} from "react";
+
+const ErrorAlert = ({ error}: {error? : string}) => error ? <Alert severity="error" sx={{mb: 2}}>{error}</Alert> : null;
+
+const StartGameCard = ({ onStart, loading }: { onStart: () => void, loading: boolean }) => (
+    <Card>
+        <CardContent>
+            <Button onClick={onStart} disabled={loading}>
+                {loading ? <CircularProgress size={24} /> : 'Start New Game'}
+            </Button>
+        </CardContent>
+    </Card>
+);
 
 const GamePage = () => {
     const navigate = useNavigate();
     const { game, loading, error, createGame} = useGame();
 
-    const handleCreateGame = async () => {
-        await createGame();
-        if (game) {
-            navigate(`/games/${game.id()}`);
+    useEffect(() => {
+        if (game && game.game_id) {
+            navigate(`/games/${game.game_id}`);
         }
-    };
+    }, [game, navigate]);
 
     return (
         <Container maxWidth="sm">
-            <Typography variant="h3" align="center" sx={{my: 4}}>
-                Pinochle Scorer
-            </Typography>
-            {error && (
-                <Alert severity="error" sx={{mb: 2}}>
-                    {error}
-                </Alert>
-            )}
-
-            <Card>
-                <CardContent>
-                    <Box textAlign="center">
-                        <Typography variant="h5" gutterBottom>
-                            Start New Game
-                        </Typography>
-                        <Button
-                            variant="contained"
-                            size="large"
-                            onClick={handleCreateGame}
-                            disabled={loading}
-                        >
-                            {loading ? <CircularProgress size={24} /> : 'Start New Game'}
-                        </Button>
-                    </Box>
-                </CardContent>
-            </Card>
+            <Typography variant="h3">Pinochle Scorer</Typography>
+            <ErrorAlert error={error} />
+            <StartGameCard onStart={createGame} loading={loading} />
         </Container>
     );
 }

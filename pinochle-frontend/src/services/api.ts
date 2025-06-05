@@ -12,7 +12,6 @@ const apiClient = axios.create({
     },
 });
 
-
 export const gameApi = {
     async createGame(): Promise<Game> {
         const response = await apiClient.post('/', {
@@ -47,4 +46,31 @@ export const gameApi = {
 
         return response.data;
     }
+
+    async declareTrump(gameId: string, suit: string) : Promise<Game> {
+        const response = await apiClient.post(`/${gameId}/declare_trump`, {
+            suit
+        });
+
+        return response.data;
+    }
+
+    async recordMeld(gameId: string, us: number, them: number) : Promise<Game> {
+        const response = await apiClient.post(`/${gameId}/record_meld`, {
+            us,
+            them
+        });
+
+        return response.data;
+    }
+
+    async recordTricks(gameId: string, us: number, them: number) : Promise<Game> {
+        const response = await apiClient.post(`/${gameId}/record_tricks`, {
+            us,
+            them
+        });
+
+        return response.data;
+    }
+
 }

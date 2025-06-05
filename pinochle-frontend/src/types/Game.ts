@@ -2,7 +2,7 @@ export type Player = 'North' | 'South' | 'East' | 'West';
 export type Suit = 'Spades' | 'Hearts' | 'Diamonds' | 'Clubs' | 'NoMarriage';
 
 export interface Game {
-    id: string;
+    game_id: string;
     state: 'WaitingForPlayers' | 'InProgress' | 'Completed';
     current_dealer: 'North' | 'South' | 'East' | 'West';
     completed_hands: Hand[];
@@ -10,7 +10,7 @@ export interface Game {
 }
 
 export interface Hand {
-    id: string;
+    hand_id: string;
     state: 'WaitingForBid' | 'WaitingForTrump' | 'WaitingForMeld' | 'WaitingForTricks' | 'Completed' | 'NoMarriage';
     bidder?: Player;
     bind_amount?: number;
