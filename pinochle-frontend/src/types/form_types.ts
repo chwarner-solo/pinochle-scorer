@@ -6,15 +6,18 @@ export type MeldFormData = { us_meld: number, them_meld: number};
 export type TricksFormData = { us_tricks: number, them_tricks: number};
 export type CompletedFormData = {};
 
-export type HandFormData = {
-    [K in keyof HandState]: { state: K; data: FormData[K] }
-};
+export type FormSchema = {
+    "NoHand": {},
+    "WaitingForBid": BidFormData,
+    "WaitingForTrump": TrumpFormData,
+    "WaitingForMeld": MeldFormData,
+    "WaitingForTricks": TricksFormData,
+    "Completed": CompletedFormData,
+    "NoMarriage": MeldFormData
+}
 
 export type FormData = {
-    WaitingForBid: BidFormData,
-    WaitingForTrump: TrumpFormData,
-    WaitingForMeld: MeldFormData,
-    WaitingForTricks: TricksFormData
-    Completed: CompletedFormData,
-    NoMarriage: MeldFormData
+    [K in HandState]: FormSchema[K];
 }
+
+export type AnyFormData = FormSchema[keyof FormSchema];

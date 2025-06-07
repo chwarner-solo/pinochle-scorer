@@ -1,5 +1,10 @@
 import axios from "axios";
-import type {Game, RunningTotal} from "../types/Game.ts";
+import type {Game, GameState, HandState, RunningTotal} from "../types/Game.ts";
+import type {BidFormData, FormData, MeldFormData, TricksFormData, TrumpFormData} from "../types/form_types.ts";
+
+export interface GameApi {
+    createGame(): Promise<Game>;
+};
 
 const API_HOST = import.meta.env.VITE_API_HOST;
 const API_BASE = `${API_HOST}/api/games`;
@@ -13,7 +18,7 @@ const apiClient = axios.create({
 });
 
 export const gameApi = {
-    async createGame(): Promise<Game> {
+    async createGame(): Promise<Game | null> {
         const response = await apiClient.post('/', {
             dealer: 'South'
         });
@@ -21,7 +26,7 @@ export const gameApi = {
         return response.data;
     },
 
-    async getGame(gameId: string): Promise<Game> {
+    async getGame(gameId: string | undefined): Promise<Game | null> {
         const response = await apiClient.get(`/${gameId}`);
         return response.data;
     },
@@ -32,45 +37,80 @@ export const gameApi = {
         return response.data;
     },
 
-    async startHand (gameId: string): Promise<Game> {
-        const response = await apiClient.post(`/${gameId}/start_hand`);
+    async startHand (gameId: string | undefined): Promise<Game | null> {
+        const response = await apiClient.post(`/start_hand`, {
+            game_id: gameId
+        });
 
         return response.data;
     },
 
-    async recordBid(gameId: string, bidder: string, amount: number) : Promise<Game> {
+    async recordBid(gameId: string, {player, bid}:BidFormData) : Promise<Game> {
         const response = await apiClient.post(`/${gameId}/record_bid`, {
-            bidder,
-            amount
+            bidder: player,
+            amount: bid
         });
 
         return response.data;
-    }
+    },
 
-    async declareTrump(gameId: string, suit: string) : Promise<Game> {
+    async declareTrump(gameId: string, {trump}: TrumpFormData) : Promise<Game> {
         const response = await apiClient.post(`/${gameId}/declare_trump`, {
-            suit
+            suit: trump
         });
 
         return response.data;
-    }
+    },
 
-    async recordMeld(gameId: string, us: number, them: number) : Promise<Game> {
+    async recordMeld(gameId: string, {us_meld, them_meld}: MeldFormData) : Promise<Game> {
         const response = await apiClient.post(`/${gameId}/record_meld`, {
-            us,
-            them
+            us_meld,
+            them_meld
         });
 
         return response.data;
-    }
+    },
 
-    async recordTricks(gameId: string, us: number, them: number) : Promise<Game> {
+    async recordTricks(gameId: string, {us_tricks, them_tricks}: TricksFormData) : Promise<Game> {
         const response = await apiClient.post(`/${gameId}/record_tricks`, {
-            us,
-            them
+            us: us_tricks,
+            them: them_tricks
         });
 
         return response.data;
     }
 
+}
+export type HandApi = {
+    [K in HandState]: (gameId: string, formData: FormData[K]) => Promise<Game | null>;
+};
+
+export const handApi: HandApi = {
+    async NoHand(gameId: string, _formData: {}) {
+        return gameApi.startHand(gameId);
+    },
+    WaitingForBid: gameApi.recordBid,
+    WaitingForTrump: gameApi.declareTrump,
+    WaitingForMeld: gameApi.recordMeld,
+    WaitingForTricks: gameApi.recordTricks,
+    NoMarriage: gameApi.recordMeld,
+    Completed: async(_gameId: string, _formData:{}) => { return null; }
+}
+
+export const realGameApi: ApiCallMap = {
+    NoGame: gameApi.createGame,
+    WaitingToStart: gameApi.startHand,
+    Completed: gameApi.getGame,
+    InProgress: async (gameId, handState, formData) => {
+        if (!handState) throw new Error("hand state required InProgress");
+        if (!formData) throw new Error("form data required InProgress");
+        return handApi[handState](gameId, formData);
+    }
+};
+
+export type ApiCallMap = {
+    [K in Exclude<GameState, "InProgress">]: (gameId?: string | undefined) => Promise<Game | null>
+
+} & {
+    InProgress: <T extends HandState>(gameId: string, handState: T, formData: any) => Promise<Game | null>
 }

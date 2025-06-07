@@ -6,6 +6,13 @@ meta {
 
 post {
   url: http://localhost:3000/api/games/{{game_id}}/record_tricks
-  body: none
+  body: json
   auth: inherit
+}
+
+body:json {
+  {
+    "us_tricks": 25,
+    "them_tricks": 25
+  }
 }

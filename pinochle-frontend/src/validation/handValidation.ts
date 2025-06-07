@@ -1,8 +1,5 @@
 import type {BidFormData, MeldFormData, TrumpFormData, FormData, CompletedFormData} from "../types/form_types";
 import type { HandState } from "../types/Game";
-import { HandStateValues } from "../types/Game";
-
-
 
 export type ValidationErrors = { [field: string]: string | undefined}
 
@@ -61,7 +58,7 @@ export const validateTricks = (form: any): ValidationErrors => {
 }
 
 export type ValidatorMap = {
-    [K in keyof HandState]: (form: FormData[K]) => ValidationErrors
+    [K in HandState]: (form: FormData[K]) => ValidationErrors
 };
 
 export const validationMap: ValidatorMap =  {

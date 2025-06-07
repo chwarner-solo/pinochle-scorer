@@ -1,47 +1,19 @@
-import {Alert, Box, Button, CircularProgress, Container, Typography} from "@mui/material";
+import {Box, Container, Stack, Typography} from "@mui/material";
 import {useGame} from "../hooks/useGame.ts";
+import {realGameApi} from "../services/api.ts";
+import {TitleCard} from "../components/game/TitleCard.tsx";
+import {StatsCard} from "../components/game/StatsCard.tsx";
+import FormCard from "../components/game/FormCard.tsx";
+import CompletedHandsCard from "../components/game/CompletedHandsCard.tsx";
 
 export default () => {
-    const { game, loading, error, createGame, startHand } = useGame();
-
+    const gameState = useGame(realGameApi);
     return (
-        <Container>
-            <Typography variant="h3" align="center" sx={{my: 4}}>
-                Pinochle Scorer
-            </Typography>
-
-            {error && (
-                <Alert severity="error" sx={{mb: 2}}>
-                    {error}
-                </Alert>
-            )}
-
-            <Box textAlign="center">
-                {!game ? (
-                    <Button
-                        variant="contained"
-                        size="large"
-                        onClick={createGame}
-                        disabled={loading}>
-                        {loading ? <CircularProgress size={24} /> : 'Start New Game'}
-                    </Button>
-                ) : (
-                    <Box>
-                        <Typography variant="h6" sx={{ mb: 2}}>
-                            Game Created! State: {game.state}
-                        </Typography>
-                        {game.state === 'WaitingToStart' && (
-                            <Button
-                                variant="contained"
-                                onClick={startHand}
-                                disabled={loading}
-                            >
-                                {loading ? <CircularProgress size={24} /> : 'Start New Hand'}
-                            </Button>
-                        )}
-                    </Box>
-                )}
-            </Box>
-        </Container>
+        <Stack spacing={2} alignItems="center" width="100%" mt={2}>
+            <TitleCard {...gameState} />
+            <StatsCard {...gameState} />
+            <FormCard {...gameState} />
+            <CompletedHandsCard {...gameState} />
+        </Stack>
     );
 }

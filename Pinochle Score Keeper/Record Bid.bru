@@ -6,6 +6,13 @@ meta {
 
 post {
   url: http://localhost:3000/api/games/{{game_id}}/record_bid
-  body: none
+  body: json
   auth: inherit
+}
+
+body:json {
+  {
+    "player": "West",
+    "bid": 55
+  }
 }

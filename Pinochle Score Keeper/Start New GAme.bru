@@ -19,3 +19,11 @@ body:json {
 vars:post-response {
   game_id: 
 }
+
+script:post-response {
+  const response = res.getBody();
+  
+  const extractedValue = response.game_id
+  
+  bru.setVar("game_id", extractedValue);
+}
