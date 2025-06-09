@@ -12,7 +12,7 @@ pub struct StartNewGameRequest {
 pub struct StartNewGameResponse {
     game_id: Uuid,
     dealer: Player,
-    state: String
+    game_state: String
 }
 
 impl From<&Game> for StartNewGameResponse {
@@ -20,7 +20,7 @@ impl From<&Game> for StartNewGameResponse {
         Self {
             game_id: game.id().0,
             dealer: game.current_dealer(),
-            state: game.state().to_string()
+            game_state: game.state().to_string()
         }
     }
 }
@@ -35,7 +35,7 @@ pub struct StartNewHandResponse {
     game_id: Uuid,
     dealer: Player,
     hand: Option<HandResponse>,
-    state: String
+    game_state: String
 }
 
 impl From<&Game> for StartNewHandResponse {
@@ -49,7 +49,7 @@ impl From<&Game> for StartNewHandResponse {
             game_id: game.id().0,
             dealer,
             hand: Option::from(HandResponse::from(current_hand.as_ref())),
-            state: game.state().to_string()
+            game_state: game.state().to_string()
         }
     }
 }
@@ -129,6 +129,7 @@ pub struct DeclareTrumpRequest {
 pub struct DeclareTrumpResponse {
     pub game_id: Uuid,
     pub game_state: String,
+    pub hand: Option<HandResponse>,
     pub bidder: String,
     pub bid_amount: u32,
     pub trump: String,
@@ -153,6 +154,7 @@ impl From<&Game> for DeclareTrumpResponse {
         Self {
             game_id: game.id().0,
             game_state: game.state().to_string(),
+            hand: Some(HandResponse::from(game.current_hand().as_ref())),
             bidder,
             bid_amount: bid_amount.unwrap_or(0),
             trump,

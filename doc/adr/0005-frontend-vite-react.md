@@ -1,7 +1,11 @@
+---
+**Superseded directly by [ADR 8: Switch from Material UI to Tailwind CSS](0008-tailwind-supersedes-mui.md)**
+---
+
 # ADR 5: Front End Stack: Vite + React + TypeScript + Material UI
 
 ## Status
-Accepted
+Superseded by ADR 0008
 
 ## Context
 We want a modern, maintainable, and performant front end that integrates well with the backend and is easy for developers to contribute to.

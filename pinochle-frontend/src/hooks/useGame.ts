@@ -37,12 +37,16 @@ function createNewGame (
    setState: (value: GameState) => void,
 ): (data?: any) => Promise<void> {
     return async (_data?: any) => {
+        console.log("Creating new game");
+        console.log("Current state:", state);
         if (state !== 'NoGame') { return;}
         setLoading(true);
         setError(null);
         try {
             const newGame = await api[state](undefined)??null;
             setGame(newGame);
+            console.log("New game:", newGame);
+            console.log("New game state:", newGame?.game_state || 'Not Set')
             setState(newGame?.game_state || 'NoGame');
         } catch (e: any) {
             setError(e.message || "Failed to create game");
@@ -95,28 +99,25 @@ function submitHandPhase(
     setHandState: (value: HandState | null) => void
 ): (formData: AnyFormData) => Promise<void> {
     return async (formData: AnyFormData) => {
-        console.log("Submitting HAnd Phase: ", formData);
+
         if (!game || !game.game_id || !handState) return;
+
         const errors = validationMap[handState](formData as any);
+
         if (Object.keys(errors).length > 0) {
             console.log("Validation errors:", errors);
             setError(JSON.stringify(errors)); // You may want to set this as an object in real usage
             return;
         }
+
         setError(null);
         setLoading(true);
+
         try {
-            console.log("Hand state:", handState)
-            console.log("Game: ", game)
-            console.log("Game state:", game.game_state)
-            console.log("Game State API Calls:", api[game.game_state]);
-            console.log("Api call exists:", api[game.game_state][handState] !== undefined);
             const newGame = await api[game.game_state][handState](game.game_id, formData);
-            console.log("New game:", newGame);
+
             setGame(newGame || null);
             setHand(newGame?.hand || null);
-            console.log("New hand:", newGame?.hand);
-            console.log("New hand state:", newGame?.hand?.state);
             setHandState(newGame?.hand?.state || null);
         } catch (e: any) {
             setError(e.message || "Failed to submit form");

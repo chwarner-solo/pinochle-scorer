@@ -5,7 +5,7 @@ import { PlayerIcons } from './IconMaps';
 
 interface HandEntryBidProps {
   formData?: BidFormData;
-  onSubmit: (data: BidFormData) => void;
+  onHandSubmit: (data: BidFormData) => void;
   loading?: boolean;
   error?: string | null;
 }
@@ -21,7 +21,7 @@ const playerCirclePositions: Record<Player, { top: string; left: string }> = {
 };
 
 export const HandEntryBid: React.FC<HandEntryBidProps> = ({ formData, onHandSubmit: onSubmit, loading, error }) => {
-  const [bid, setBid] = useState(formData?.bid ?? 0);
+  const [bid, setBid] = useState(formData?.bid ?? 50);
   const [player, setPlayer] = useState<Player>(formData?.player ?? 'South');
 
   const handlePlayerClick = (p: Player) => setPlayer(p);
@@ -65,7 +65,7 @@ export const HandEntryBid: React.FC<HandEntryBidProps> = ({ formData, onHandSubm
         </div>
         <input
           type="number"
-          min={0}
+          min={50}
           value={bid}
           onChange={handleBidChange}
           className="border rounded px-2 py-1 w-32 text-center text-lg"

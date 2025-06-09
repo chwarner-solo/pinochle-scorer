@@ -1,10 +1,10 @@
 import React from 'react';
 
 export interface HandEntryStartGameProps {
-  onSubmit: () => void;
+  onGameSubmit: () => void;
 }
 
-export const HandEntryStartGame: React.FC<HandEntryStartGameProps> = ({ onSubmit }) => (
+export const HandEntryStartGame: React.FC<HandEntryStartGameProps> = ({ onGameSubmit: onSubmit }) => (
   <>
     <div className="text-xl font-semibold mb-2">Ready to Play Pinochle?</div>
     <button

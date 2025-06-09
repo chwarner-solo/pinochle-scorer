@@ -57,7 +57,7 @@ export const gameApi = {
     async declareTrump(gameId: string, {trump}: TrumpFormData) : Promise<Game> {
         console.log('declaring trump - API Call');
         const response = await apiClient.post(`/${gameId}/declare_trump`, {
-            suit: trump
+            trump
         });
 
         console.log(response.data);

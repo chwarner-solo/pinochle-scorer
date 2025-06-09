@@ -54,7 +54,7 @@ const HAND_STATE_COMPONENTS : HandStateComponents = {
 };
 
 const GAME_STATE_COMPONENTS: Record<Exclude<GameState, 'InProgress'>, React.FC<any>> = {
-  NoGame: (props) => <HandEntryStartHand {...props} />, // still uses onGameSubmit
+  NoGame: (props) => <HandEntryStartGame {...props} />, // still uses onGameSubmit
   WaitingToStart: (props) => <HandEntryStartHand {...props} />, // still uses onGameSubmit
   Completed: (props) => <>Completed</>,
 };

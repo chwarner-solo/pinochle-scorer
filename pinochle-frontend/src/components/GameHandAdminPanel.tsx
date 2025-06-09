@@ -48,6 +48,14 @@ const GameHandAdminPanel: React.FC<GameHandAdminPanelProps> = ({ game, hand, onR
         <strong>Hand:</strong>
         <pre style={{ background: '#eee', padding: 8, borderRadius: 4, overflowX: 'auto' }}>{JSON.stringify(hand, null, 2)}</pre>
       </div>
+      <div>
+        <strong>Game State:</strong>
+        <pre style={{ background: '#eee', padding: 8, borderRadius: 4, overflowX: 'auto' }}>{game?.game_state || 'No game'}</pre>
+      </div>
+      <div>
+        <strong>Hand State:</strong>
+        <pre style={{ background: '#eee', padding: 8, borderRadius: 4, overflowX: 'auto' }}>{hand?.state || 'No hand'}</pre>
+      </div>
     </div>
   );
 };
