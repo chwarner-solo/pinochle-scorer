@@ -20,39 +20,46 @@ export const validateTrump = (form: TrumpFormData): ValidationErrors => {
 }
 
 export const validateMeld = (form: MeldFormData): ValidationErrors => {
-    const errors: ValidationErrors = {};
-    if (form.us_meld < 20 && form.us_meld !== 0) errors.us_meld = "US meld must be 20 or higher.";
-    if (form.them_meld < 20 && form.them_meld !== 0) errors.them_meld = "THEM meld must be 20 or higher.";
-    return errors;
+    // No errors or user notification for meld < 20; normalization happens silently
+    return {};
 }
 
 export const validateTricks = (form: any): ValidationErrors => {
     const errors: ValidationErrors = {};
-    const us = form.us_tricks;
-    const them = form.them_tricks;
+    const us = Number(form.us_tricks);
+    const them = Number(form.them_tricks);
 
-    // 1. If both us and them are defined, make sure they add up to 50
-    if (
-        typeof us === "number" &&
-        typeof them === "number" &&
-        us !== 0 &&
-        them !== 0
-    ) {
-        if (us +them !== 50) {
-            errors.us_tricks = "US and THEM tricks must add up to 50.";
-            errors.them_tricks = "US and THEM tricks must add up to 50.";
-            return errors;
-        }
+    // If both are blank/zero, fail
+    if ((!us || isNaN(us)) && (!them || isNaN(them))) {
+        errors.us_tricks = "Enter at least one team's tricks.";
+        errors.them_tricks = "Enter at least one team's tricks.";
+        return errors;
     }
 
-    // 2. If either us or them is defined, make sure it's between 20 and 50
+    let finalUs = us;
+    let finalThem = them;
 
-    if (us !== undefined && us !== 0 && (us < 20 || us > 50)) {
-        errors.us_tricks = "US tricks must be between 20 and 50.";
+    // If either side is zero, infer the other
+    if (us === 0) {
+        finalUs = 50 - them;
+    }
+    if (them === 0) {
+        finalThem = 50 - us;
     }
 
-    if (them !== undefined && them !== 0 && (them < 20 || them > 50)) {
-        errors.them_tricks = "THEM tricks must be between 20 and 50.";
+    // Must sum to 50
+    if (finalUs + finalThem !== 50) {
+        errors.us_tricks = "US and THEM tricks must add up to 50.";
+        errors.them_tricks = "US and THEM tricks must add up to 50.";
+        return errors;
+    }
+
+    // Each must be between 0 and 50
+    if (finalUs < 0 || finalUs > 50) {
+        errors.us_tricks = "US tricks must be between 0 and 50.";
+    }
+    if (finalThem < 0 || finalThem > 50) {
+        errors.them_tricks = "THEM tricks must be between 0 and 50.";
     }
 
     return errors;

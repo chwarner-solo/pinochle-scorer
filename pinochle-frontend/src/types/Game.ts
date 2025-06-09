@@ -28,6 +28,7 @@ export interface Hand {
     us_total?: number;
     them_total?: number;
     dealer?: Player;
+    required_tricks?: number;
 }
 
 export interface RunningTotal {

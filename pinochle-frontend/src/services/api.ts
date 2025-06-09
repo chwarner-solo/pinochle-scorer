@@ -75,8 +75,8 @@ export const gameApi = {
 
     async recordTricks(gameId: string, {us_tricks, them_tricks}: TricksFormData) : Promise<Game> {
         const response = await apiClient.post(`/${gameId}/record_tricks`, {
-            us: us_tricks,
-            them: them_tricks
+            us_tricks,
+            them_tricks
         });
 
         return response.data;

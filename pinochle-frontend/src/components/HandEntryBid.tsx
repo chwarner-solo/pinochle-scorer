@@ -37,7 +37,7 @@ export const HandEntryBid: React.FC<HandEntryBidProps> = ({ formData, onHandSubm
   return (
     <>
       <div className="text-xl font-semibold mb-2">Declare Bid</div>
-      <form onSubmit={handleSubmit} className="flex flex-col items-center gap-4">
+      <form onSubmit={handleSubmit} className="flex flex-col items-center gap-4 bg-white p-6 rounded shadow">
         <div className="relative w-40 h-40 flex items-center justify-center mb-2">
           {/* Table reference (large circle) */}
           <div className="absolute rounded-full border-2 border-gray-300 w-32 h-32 left-1/2 top-1/2" style={{ transform: 'translate(-50%, -50%)' }} />

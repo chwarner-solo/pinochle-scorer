@@ -178,7 +178,8 @@ pub struct RecordMeldResponse {
     pub trump: String,
     pub us_meld: u32,
     pub them_meld: u32,
-    pub hand_state: String
+    pub hand_state: String,
+    pub hand: Option<HandResponse>,
 }
 
 impl From<&Game> for RecordMeldResponse {
@@ -201,6 +202,7 @@ impl From<&Game> for RecordMeldResponse {
                 None,
                 "".to_string()
             ));
+        let hand = value.current_hand().map(HandResponse::from);
 
         Self {
             game_id: value.id().0,
@@ -210,7 +212,8 @@ impl From<&Game> for RecordMeldResponse {
             trump,
             us_meld: us_meld.unwrap_or(0),
             them_meld: them_meld.unwrap_or(0),
-            hand_state
+            hand_state,
+            hand
         }
     }
 }
@@ -234,7 +237,8 @@ pub struct RecordTricksResponse {
     pub them_tricks: u32,
     pub us_total: i32,
     pub them_total: i32,
-    pub hand_state: String
+    pub hand_state: String,
+    pub hand: Option<HandResponse>,
 }
 
 impl From<&Game> for RecordTricksResponse {
@@ -265,7 +269,7 @@ impl From<&Game> for RecordTricksResponse {
                 0, // them_total
                 "".to_string() // hand_state
             ));
-
+        let hand = value.current_hand().map(HandResponse::from);
         Self {
             game_id: value.id().0,
             game_state: value.state().to_string(),
@@ -278,7 +282,8 @@ impl From<&Game> for RecordTricksResponse {
             them_tricks: them_tricks.unwrap_or(0),
             us_total,
             them_total,
-            hand_state
+            hand_state,
+            hand,
         }
     }
 }
@@ -296,7 +301,8 @@ pub struct HandResponse {
     us_meld: Option<u32>,
     them_meld: Option<u32>,
     us_tricks: Option<u32>,
-    them_tricks: Option<u32>
+    them_tricks: Option<u32>,
+    required_tricks: Option<u32>,
 }
 
 impl From<&Hand> for HandResponse {
@@ -313,7 +319,28 @@ impl From<&Hand> for HandResponse {
             us_meld: hand.us_meld(),
             them_meld: hand.them_meld(),
             us_tricks: hand.us_tricks(),
-            them_tricks: hand.them_tricks()
+            them_tricks: hand.them_tricks(),
+            required_tricks: hand.tricks_to_save()
+        }
+    }
+}
+
+impl From<Hand> for HandResponse {
+    fn from(hand: Hand) -> Self {
+        HandResponse {
+            id: hand.id().0,
+            state: hand.state().to_string(),
+            dealer: Some(hand.dealer()),
+            bidder: hand.bidder(),
+            bid_amount: hand.bid_amount(),
+            trump: hand.trump(),
+            us_total: Some(hand.us_total()),
+            them_total: Some(hand.them_total()),
+            us_meld: hand.us_meld(),
+            them_meld: hand.them_meld(),
+            us_tricks: hand.us_tricks(),
+            them_tricks: hand.them_tricks(),
+            required_tricks: hand.tricks_to_save()
         }
     }
 }
@@ -332,7 +359,8 @@ impl From<Option<&Hand>> for HandResponse {
             us_meld: None,
             them_meld: None,
             us_tricks: None,
-            them_tricks: None
+            them_tricks: None,
+            required_tricks: None,
         })
     }
 }

@@ -50,11 +50,31 @@ const GameHandAdminPanel: React.FC<GameHandAdminPanelProps> = ({ game, hand, onR
       </div>
       <div>
         <strong>Game State:</strong>
-        <pre style={{ background: '#eee', padding: 8, borderRadius: 4, overflowX: 'auto' }}>{game?.game_state || 'No game'}</pre>
+        {(() => {
+          const validGameStates = [
+            'NoGame', 'WaitingToStart', 'InProgress', 'Completed'
+          ];
+          let gameState = game?.game_state;
+          if (!gameState && game === null) gameState = 'NoGame';
+          if (!gameState || !validGameStates.includes(gameState)) {
+            return <pre style={{ background: '#fee', color: '#c00', padding: 8, borderRadius: 4, fontWeight: 'bold' }}>Not Set</pre>;
+          }
+          return <pre style={{ background: '#eee', padding: 8, borderRadius: 4 }}>{gameState}</pre>;
+        })()}
       </div>
       <div>
         <strong>Hand State:</strong>
-        <pre style={{ background: '#eee', padding: 8, borderRadius: 4, overflowX: 'auto' }}>{hand?.state || 'No hand'}</pre>
+        {(() => {
+          const validHandStates = [
+            'NoHand', 'WaitingForBid', 'WaitingForTrump', 'WaitingForMeld', 'WaitingForTricks', 'Completed', 'NoMarriage'
+          ];
+          let handState = hand?.state;
+          if (!handState && hand === null) handState = 'NoHand';
+          if (!handState || !validHandStates.includes(handState)) {
+            return <pre style={{ background: '#fee', color: '#c00', padding: 8, borderRadius: 4, fontWeight: 'bold' }}>Not Set</pre>;
+          }
+          return <pre style={{ background: '#eee', padding: 8, borderRadius: 4 }}>{handState}</pre>;
+        })()}
       </div>
     </div>
   );

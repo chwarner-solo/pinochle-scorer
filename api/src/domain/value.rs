@@ -119,6 +119,34 @@ pub enum HandState {
     },
 }
 
+impl HandState {
+    pub fn us_meld(self) -> Option<u32> {
+        match self {
+            HandState::WaitingForTricks { us_meld, .. } => us_meld,
+            HandState::Completed { us_meld, .. } => us_meld,
+            _ => None
+        }
+    }
+    
+    pub fn them_meld(self) -> Option<u32> {
+        match self {
+            HandState::WaitingForTricks { them_meld, .. } => them_meld,
+            HandState::Completed { them_meld, .. } => them_meld,
+            _ => None
+        }
+    }
+    
+    pub fn bid_amount(self) -> Option<u32> {
+        match self {
+            HandState::WaitingForTrump { bid_amount, .. } => Some(bid_amount),
+            HandState::WaitingForTricks { bid_amount, .. } => Some(bid_amount),
+            HandState::Completed { bid_amount, .. } => Some(bid_amount),
+            _ => None
+        }
+    }
+    
+}
+
 impl fmt::Display for HandState {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {

@@ -247,60 +247,64 @@ impl Hand {
     }
 
     pub fn record_tricks(self, us: u32, them: u32) -> Result<Self, HandError> {
-
         tracing::info!("Validating tricks");
-        if (us + them) != 50 {
+
+        // If both are zero, fail
+        if us == 0 && them == 0 {
             return Err(HandError::InvalidTricks(us, them));
         }
 
-        tracing::info!("Validated tricks {0} {1} {2}", us, them, 50);
+        let mut final_us = us;
+        let mut final_them = them;
 
+        // If either is zero, infer the other
+        if us == 0 {
+            final_us = 50 - them;
+        }
+        if them == 0 {
+            final_them = 50 - us;
+        }
+
+        // Must sum to 50
+        if final_us + final_them != 50 {
+            return Err(HandError::InvalidTricks(final_us, final_them));
+        }
+
+        tracing::info!("Validated tricks {0} {1} {2}", final_us, final_them, 50);
         tracing::info!("Validating hand state: {:?}", self.state);
-        
         let HandState::WaitingForTricks { bidder, bid_amount, trump, us_meld, them_meld } = self.state else {
             return Err(HandError::InvalidStateTransition("Hand is not waiting for tricks".to_string()));
         };
-
         tracing::info!("Validated hand state");
-
         tracing::info!("Identifying bidding team");
         let bidding_team = bidder.team();
-
         tracing::info!("Calculating required tricks");
         let required_tricks = Self::required_tricks(bid_amount, us_meld, them_meld, bidding_team);
-
         tracing::info!("Identifying tricks for bidding team");
         let bidder_tricks = match bidding_team {
-            Team::Us => us,
-            Team::Them => them
+            Team::Us => final_us,
+            Team::Them => final_them
         };
-
         tracing::info!("Calculating team totals");
-        let us_total = Self::calculate_team_total(us_meld.unwrap_or(0), us);
-        let them_total = Self::calculate_team_total(them_meld.unwrap_or(0), them);
-
+        let us_total = Self::calculate_team_total(us_meld.unwrap_or(0), final_us);
+        let them_total = Self::calculate_team_total(them_meld.unwrap_or(0), final_them);
         tracing::info!("Applying bidding penalty");
         let (us_total, them_total) = Self::apply_bidding_penalty(
-            bidding_team, 
-            us_total, 
-            them_total, 
+            bidding_team,
+            us_total,
+            them_total,
             bid_amount,
             bidder_tricks,
             required_tricks);
-
         tracing::info!("Normalizing melds");
         let us_meld = Self::normalize_meld(us_meld);
-        let them_meld =Self::normalize_meld(them_meld);
-
+        let them_meld = Self::normalize_meld(them_meld);
         tracing::info!("Normalizing tricks");
-        let us_tricks = Some(us);
-        let them_tricks = Some(them);
-
+        let us_tricks = Some(final_us);
+        let them_tricks = Some(final_them);
         tracing::info!("Normalizing totals");
-        let us_total= Self::normalize_total(us_total);
+        let us_total = Self::normalize_total(us_total);
         let them_total = Self::normalize_total(them_total);
-
-
         tracing::info!("Returning completed hand");
         Ok(Self {
             state: HandState::Completed {
@@ -316,6 +320,17 @@ impl Hand {
             },
             ..self.clone()
         })
+    }
+    
+    pub fn tricks_to_save(&self) -> Option<u32> {
+        if self.bid_amount().is_none() {
+            return None;
+        }
+        let them_meld = self.state.them_meld().unwrap_or(0);
+        let us_meld = self.state.us_meld().unwrap_or(0);
+        let bid_amount = self.bid_amount.unwrap_or(0);
+        
+        Some(Hand::required_tricks(bid_amount, Some(us_meld), Some(them_meld), self.bidder?.team()))
     }
 
     fn required_tricks(bid_amount: u32, us_meld: Option<u32>, them_meld: Option<u32>, bidding_team: Team) -> u32 {
@@ -641,7 +656,6 @@ mod tests {
         let result = hand.record_meld(19, 32);
 
         assert!(result.is_ok());
-
         let new_hand = result.unwrap();
 
         match new_hand.state() {
@@ -675,7 +689,7 @@ mod tests {
         let new_hand = result.unwrap();
 
         match new_hand.state() {
-            HandState::Completed { bidder, bid_amount, trump, us_meld, them_meld, us_tricks, them_tricks, us_total, them_total } => {
+            HandState::Completed {bidder, bid_amount, trump, us_meld, them_meld, us_tricks, them_tricks, us_total, them_total} => {
                 assert_eq!(bidder, Player::North);
                 assert_eq!(bid_amount, 51);
                 assert_eq!(trump, Suit::Spades);
@@ -685,7 +699,7 @@ mod tests {
                 assert_eq!(them_tricks, None);
                 assert_eq!(us_total, Some(-51));
                 assert_eq!(them_total, Some(32));
-            }
+            },
             _ => panic!("Expected Complete state")
         }
     }
@@ -705,7 +719,7 @@ mod tests {
         let new_hand = result.unwrap();
 
         match new_hand.state() {
-            HandState::Completed { bidder, bid_amount, trump, us_meld, them_meld, us_tricks, them_tricks, us_total, them_total } => {
+            HandState::Completed {bidder, bid_amount, trump, us_meld, them_meld, us_tricks, them_tricks, us_total, them_total} => {
                 assert_eq!(bidder, Player::North);
                 assert_eq!(bid_amount, 51);
                 assert_eq!(trump, Suit::NoMarriage);
@@ -715,7 +729,7 @@ mod tests {
                 assert_eq!(them_tricks, None);
                 assert_eq!(us_total, Some(-51));
                 assert_eq!(them_total, Some(32));
-            }
+            },
             _ => panic!("Expected Complete state")
         }
     }
@@ -753,7 +767,7 @@ mod tests {
         let new_hand = result.unwrap();
 
         match new_hand.state() {
-            HandState::Completed { bidder, bid_amount, trump, us_meld, them_meld, us_tricks, them_tricks, us_total, them_total } => {
+            HandState::Completed {bidder, bid_amount, trump, us_meld, them_meld, us_tricks, them_tricks, us_total, them_total} => {
                 assert_eq!(bidder, Player::North);
                 assert_eq!(bid_amount, 51);
                 assert_eq!(trump, Suit::Spades);
@@ -763,7 +777,7 @@ mod tests {
                 assert_eq!(them_tricks, Some(23));
                 assert_eq!(us_total, Some(51));
                 assert_eq!(them_total, Some(55));
-            }
+            },
             _ => panic!("Expected Complete state")
         }
     }
@@ -799,7 +813,7 @@ mod tests {
         let new_hand = result.unwrap();
 
         match new_hand.state() {
-            HandState::Completed { us_tricks, them_tricks, us_total, them_total, .. } => {
+            HandState::Completed {us_tricks, them_tricks, us_total, them_total, ..} => {
                 assert_eq!(us_tricks, Some(36));
                 assert_eq!(them_tricks, Some(14));
                 assert_eq!(us_total, Some(60));
@@ -825,12 +839,12 @@ mod tests {
         let new_hand = result.unwrap();
 
         match new_hand.state() {
-            HandState::Completed { us_tricks, them_tricks, us_total, them_total, .. } => {
+            HandState::Completed {us_tricks, them_tricks, us_total, them_total, ..} => {
                 assert_eq!(us_tricks, Some(30));
                 assert_eq!(them_tricks, Some(20));
                 assert_eq!(us_total, Some(-60i32));
                 assert_eq!(them_total, Some(52i32));
-            }
+            },
             _ => panic!("Expected Complete state")
         }
         ;
@@ -880,5 +894,88 @@ mod tests {
 
         assert_eq!(hand.us_total(), 50);   // 24 meld + 26 tricks
         assert_eq!(hand.them_total(), 56); // 32 meld + 24 tricks
+    }
+
+    #[test]
+    fn should_allow_zero_meld_for_both_teams() {
+        let hand = Hand::new(Player::South)
+            .place_bid(Player::North, 51)
+            .unwrap()
+            .declare_trump(Suit::Spades)
+            .unwrap();
+
+        let result = hand.record_meld(0, 0);
+        assert!(result.is_ok(), "Expected Ok for zero melds, got: {:?}", result);
+        let new_hand = result.unwrap();
+
+        match new_hand.state() {
+            HandState::Completed {bidder, bid_amount, trump, us_meld, them_meld, us_tricks, them_tricks, us_total, them_total} => {
+                assert_eq!(bidder, Player::North);
+                assert_eq!(bid_amount, 51);
+                assert_eq!(trump, Suit::Spades);
+                assert_eq!(us_meld, None, "us_meld should be None for zero");
+                assert_eq!(them_meld, None, "them_meld should be None for zero");
+                assert_eq!(us_tricks, None);
+                assert_eq!(them_tricks, None);
+                // Forfeiting meld means negative bid for bidding team, zero for other
+                assert_eq!(us_total, Some(-51));
+                assert_eq!(them_total, Some(0));
+            },
+            _ => panic!("Expected Completed state")
+        }
+    }
+
+    #[test]
+    fn should_proceed_to_tricks_if_one_team_has_meld_20_or_more() {
+        let hand = Hand::new(Player::South)
+            .place_bid(Player::North, 51)
+            .unwrap()
+            .declare_trump(Suit::Spades)
+            .unwrap();
+        let result = hand.record_meld(0, 24);
+        assert!(result.is_ok(), "Expected Ok for melds 0,24");
+        let new_hand = result.unwrap();
+
+        match new_hand.state() {
+            HandState::Completed {bidder, bid_amount, trump, us_meld, them_meld, us_tricks, them_tricks, us_total, them_total} => {
+                assert_eq!(bidder, Player::North);
+                assert_eq!(bid_amount, 51);
+                assert_eq!(trump, Suit::Spades);
+                assert_eq!(us_meld, None);
+                assert_eq!(them_meld, Some(24));
+                assert_eq!(us_tricks, None);
+                assert_eq!(them_tricks, None);
+                assert_eq!(us_total, Some(-51));
+                assert_eq!(them_total, Some(24));
+            },
+            _ => panic!("Expected Completed state")
+        }
+    }
+
+    #[test]
+    fn should_forfeit_hand_if_contract_team_meld_is_below_20() {
+        let hand = Hand::new(Player::South)
+            .place_bid(Player::North, 51)
+            .unwrap()
+            .declare_trump(Suit::Spades)
+            .unwrap();
+        let result = hand.record_meld(0, 24);
+        assert!(result.is_ok(), "Expected Ok for melds 0,24");
+        let new_hand = result.unwrap();
+
+        match new_hand.state() {
+            HandState::Completed {bidder, bid_amount, trump, us_meld, them_meld, us_tricks, them_tricks, us_total, them_total} => {
+                assert_eq!(bidder, Player::North);
+                assert_eq!(bid_amount, 51);
+                assert_eq!(trump, Suit::Spades);
+                assert_eq!(us_meld, None);
+                assert_eq!(them_meld, Some(24));
+                assert_eq!(us_tricks, None);
+                assert_eq!(them_tricks, None);
+                assert_eq!(us_total, Some(-51));
+                assert_eq!(them_total, Some(24));
+            },
+            _ => panic!("Expected Completed state")
+        }
     }
 }

@@ -1,11 +1,11 @@
 import React from 'react';
 import type { GameState, HandState } from '../types/Game';
 import { HandEntryStartGame } from './HandEntryStartGame';
-import type { HandEntryStartGameProps } from './HandEntryStartGame';
 import { HandEntryStartHand } from './HandEntryStartHand';
-import type { HandEntryStartHandProps } from './HandEntryStartHand';
 import { HandEntryBid } from './HandEntryBid';
 import { HandEntryTrump } from './HandEntryTrump';
+import { HandEntryMeld } from './HandEntryMeld';
+import HandEntryTricks from './HandEntryTricks';
 
 interface HandEntryCardProps {
   state: GameState;
@@ -23,8 +23,8 @@ const WaitingForBid: React.FC<any> = (props) => (
 const WaitingForTrump: React.FC<any> = (props) => (
   <HandEntryTrump {...props} />
 );
-const WaitingForMeld: React.FC<any> = (props) => <>WaitingForMeld</>;
-const WaitingForTricks: React.FC<any> = (props) => <>WaitingForTricks</>;
+const WaitingForMeld: React.FC<any> = (props) => <HandEntryMeld {...props} />;
+const WaitingForTricks: React.FC<any> = (props) => <HandEntryTricks {...props} />;
 const Bidding: React.FC<any> = (props) => <>Bidding</>;
 const Playing: React.FC<any> = (props) => <>Playing</>;
 const Scoring: React.FC<any> = (props) => <>Scoring</>;
@@ -45,7 +45,7 @@ const HAND_STATE_COMPONENTS : HandStateComponents = {
   WaitingForBid,
   WaitingForTrump: WaitingForTrump,
   WaitingForMeld,
-  WaitingForTricks,
+  WaitingForTricks: HandEntryTricks,
   Bidding,
   Playing,
   Scoring,
