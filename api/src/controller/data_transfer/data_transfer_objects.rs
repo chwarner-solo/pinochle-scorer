@@ -93,6 +93,7 @@ pub struct RecordBidRequest {
 pub struct RecordBidResponse {
     pub game_id: Uuid,
     pub game_state: String,
+    pub hand: Option<HandResponse>,
     pub bidder: Option<Player>,
     pub bid_amount: Option<u32>,
     pub hand_state: String
@@ -112,6 +113,7 @@ impl From<&Game> for RecordBidResponse {
             game_id: game.id().0,
             game_state: game.state().to_string(),
             bidder: game.current_hand().and_then(|h| h.bidder()),
+            hand: Option::from(HandResponse::from(game.current_hand().as_ref())),
             bid_amount: game.current_hand().and_then(|h| h.bid_amount()),
             hand_state: game.current_hand().unwrap().state().to_string()
         }

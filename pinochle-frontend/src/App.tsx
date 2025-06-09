@@ -1,17 +1,14 @@
-import './App.css'
-
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import IndexPage from "./pages/IndexPage.tsx";
+import './App.css';
+import React, { useState } from 'react';
+import Index from "./pages";
 
 function App() {
 
-    return (
-        <BrowserRouter>
-            <Routes>
-                <Route path="/" element={<IndexPage/>}/>
-            </Routes>
-        </BrowserRouter>
-    );
+  return (
+    <>
+      <Index/>
+    </>
+  );
 }
 
-export default App
+export default App;

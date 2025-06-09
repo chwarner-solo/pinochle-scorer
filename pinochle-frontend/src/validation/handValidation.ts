@@ -7,7 +7,8 @@ export const validateBid= (form: BidFormData): ValidationErrors => {
     const errors: ValidationErrors = {};
 
     if (!form.player) errors.player = "Select a player for the bid.";
-    errors.bid = getBidError(form.bid);
+    let bid = getBidError(form.bid);
+    if (bid) errors.bid = bid;
 
     return errors;
 }

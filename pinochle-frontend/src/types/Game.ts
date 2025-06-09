@@ -9,7 +9,7 @@ export type GameState = 'NoGame' | 'WaitingToStart' | 'InProgress' | 'Completed'
 
 export interface Game {
     game_id: string;
-    state: GameState;
+    game_state: GameState;
     current_dealer: 'North' | 'South' | 'East' | 'West';
     completed_hands: Hand[];
     hand?: Hand

@@ -47,18 +47,20 @@ export const gameApi = {
 
     async recordBid(gameId: string, {player, bid}:BidFormData) : Promise<Game> {
         const response = await apiClient.post(`/${gameId}/record_bid`, {
-            bidder: player,
-            amount: bid
+            player,
+            bid
         });
 
         return response.data;
     },
 
     async declareTrump(gameId: string, {trump}: TrumpFormData) : Promise<Game> {
+        console.log('declaring trump - API Call');
         const response = await apiClient.post(`/${gameId}/declare_trump`, {
             suit: trump
         });
 
+        console.log(response.data);
         return response.data;
     },
 
@@ -101,16 +103,12 @@ export const realGameApi: ApiCallMap = {
     NoGame: gameApi.createGame,
     WaitingToStart: gameApi.startHand,
     Completed: gameApi.getGame,
-    InProgress: async (gameId, handState, formData) => {
-        if (!handState) throw new Error("hand state required InProgress");
-        if (!formData) throw new Error("form data required InProgress");
-        return handApi[handState](gameId, formData);
-    }
+    InProgress: handApi
 };
 
 export type ApiCallMap = {
     [K in Exclude<GameState, "InProgress">]: (gameId?: string | undefined) => Promise<Game | null>
 
 } & {
-    InProgress: <T extends HandState>(gameId: string, handState: T, formData: any) => Promise<Game | null>
+    InProgress: HandApi
 }
