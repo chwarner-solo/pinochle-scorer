@@ -36,16 +36,15 @@ mod data_transfer;
 mod error_response;
 mod infrastructure;
 
-use data_transfer::{StartNewGameRequest, StartNewGameResponse};
-use crate::controller::data_transfer::{
-    CompletedHandsResponse, 
-    DeclareTrumpRequest, DeclareTrumpResponse, 
+use data_transfer::{StartNewGameRequest, 
+    DeclareTrumpRequest, 
     HandResponse, 
-    RecordBidRequest, RecordBidResponse, 
-    RecordMeldRequest, RecordMeldResponse, 
-    RecordTricksRequest, RecordTricksResponse, 
+    RecordBidRequest, 
+    RecordMeldRequest, 
+    RecordTricksRequest, 
     RunningTotalResponse, 
-    StartNewHandRequest, StartNewHandResponse
+    StartNewHandRequest,
+    GameResponse,
 };
 use crate::controller::error_response::ToResponse;
 
@@ -60,7 +59,7 @@ fn create_cors_layer() -> CorsLayer {
 
 #[debug_handler]
 // --- Handler stubs ---
-pub async fn start_new_game_handler(State(state): State<AppState>, headers: HeaderMap, Json(payload): Json<StartNewGameRequest>) -> Result<Json<StartNewGameResponse>, AppError> {
+pub async fn start_new_game_handler(State(state): State<AppState>, headers: HeaderMap, Json(payload): Json<StartNewGameRequest>) -> Result<Json<GameResponse>, AppError> {
 
     tracing::info!("=== START NEW GAME HANDLER ===");
     tracing::info!("All Headers: {:#?}", headers);
@@ -72,13 +71,13 @@ pub async fn start_new_game_handler(State(state): State<AppState>, headers: Head
 
     tracing::info!("game: {:#?}", game);
 
-    let dto = StartNewGameResponse::from(&game);
+    let dto = GameResponse::from(&game);
 
     Ok(Json(dto))
 }
 
 #[debug_handler]
-pub async fn start_new_hand_handler(State(state): State<AppState>, Json(payload): Json<StartNewHandRequest>) -> Result<Json<StartNewHandResponse>, AppError> {
+pub async fn start_new_hand_handler(State(state): State<AppState>, Json(payload): Json<StartNewHandRequest>) -> Result<Json<GameResponse>, AppError> {
     tracing::info!("start_new_hand_handler: begin");
 
     let AppState { start_hand, .. } = state;
@@ -86,19 +85,19 @@ pub async fn start_new_hand_handler(State(state): State<AppState>, Json(payload)
     let game = start_hand.execute(GameId(payload.game_id)).await?;
     tracing::info!("start_new_hand_handler: got game");
 
-    let dto = StartNewHandResponse::from(&game);
+    let dto = GameResponse::from(&game);
 
     tracing::info!("start_new_hand_handler: end");
 
     Ok(Json(dto))
 }
 
-pub async fn get_completed_hands_handler(State(state): State<AppState>, Path(game_id): Path<String>) -> Result<Json<CompletedHandsResponse>, AppError> {
+pub async fn get_completed_hands_handler(State(state): State<AppState>, Path(game_id): Path<String>) -> Result<Json<Vec<HandResponse>>, AppError> {
     let id = Uuid::parse_str(&game_id).map_err(|e| AppError::GetParseUuidError(game_id.clone()))?;
     tracing::info!("get_completed_hands_handler");
     let AppState { get_completed_hands, .. } = state;
     let hands = get_completed_hands.execute(GameId(id)).await?;
-    let dto = CompletedHandsResponse::from(hands);
+    let dto = hands.iter().map(HandResponse::from).collect();
 
     Ok(Json(dto))
 }
@@ -128,48 +127,48 @@ pub async fn get_running_total_handler(State(state): State<AppState>, Path(game_
     Ok(Json(dto))
 }
 
-pub async fn record_bid_handler(State(state): State<AppState>, Path(game_id): Path<String>, Json(payload): Json<RecordBidRequest>) -> Result<Json<RecordBidResponse>, AppError> {
+pub async fn record_bid_handler(State(state): State<AppState>, Path(game_id): Path<String>, Json(payload): Json<RecordBidRequest>) -> Result<Json<GameResponse>, AppError> {
     tracing::info!("record_bid_handler");
     let AppState { record_bid, .. } = state;
     let id = Uuid::parse_str(&game_id).map_err(|e| AppError::GetParseUuidError(game_id.clone()))?;
 
     let game = record_bid.execute(GameId(id), payload.player, payload.bid).await?;
-    let dto = RecordBidResponse::from(&game);
+    let dto = GameResponse::from(&game);
 
     Ok(Json(dto))
 }
 
-pub async fn declare_trump_handler(State(state): State<AppState>, Path(game_id): Path<String>, Json(payload): Json<DeclareTrumpRequest>) -> Result<Json<DeclareTrumpResponse>, AppError> {
+pub async fn declare_trump_handler(State(state): State<AppState>, Path(game_id): Path<String>, Json(payload): Json<DeclareTrumpRequest>) -> Result<Json<GameResponse>, AppError> {
     let AppState { declare_trump, .. } = state;
     let id = Uuid::parse_str(&game_id).map_err(|e| AppError::GetParseUuidError(game_id.clone()))?;
 
     let game = declare_trump.execute(GameId(id), payload.trump).await?;
 
-    let dto = DeclareTrumpResponse::from(&game);
+    let dto = GameResponse::from(&game);
 
     Ok(Json(dto))
 }
 
 
 #[debug_handler]
-pub async fn record_meld_handler(State(state): State<AppState>, Path(game_id): Path<String>, Json(payload): Json<RecordMeldRequest>) -> Result<Json<RecordMeldResponse>, AppError> {
+pub async fn record_meld_handler(State(state): State<AppState>, Path(game_id): Path<String>, Json(payload): Json<RecordMeldRequest>) -> Result<Json<GameResponse>, AppError> {
     let AppState { record_meld, .. } = state;
     let id = Uuid::parse_str(&game_id).map_err(|e| AppError::GetParseUuidError(game_id.clone()))?;
 
     let game = record_meld.execute(GameId(id), payload.us_meld, payload.them_meld).await?;
 
-    let dto = RecordMeldResponse::from(&game);
+    let dto = GameResponse::from(&game);
 
     Ok(Json(dto))
 }
 
-pub async fn record_tricks_handler(State(state): State<AppState>, Path(game_id): Path<String>, Json(payload): Json<RecordTricksRequest>) -> Result<Json<RecordTricksResponse>, AppError> {
+pub async fn record_tricks_handler(State(state): State<AppState>, Path(game_id): Path<String>, Json(payload): Json<RecordTricksRequest>) -> Result<Json<GameResponse>, AppError> {
     let AppState { record_tricks, .. } = state;
     let id = Uuid::parse_str(&game_id).map_err(|e| AppError::GetParseUuidError(game_id.clone()))?;
 
     let game = record_tricks.execute(GameId(id), payload.us_tricks, payload.them_tricks).await?;
 
-    let dto = RecordTricksResponse::from(&game);
+    let dto = GameResponse::from(&game);
 
     Ok(Json(dto))
 }

@@ -1,14 +1,14 @@
-import type {Game, GameState, Hand, HandState, Player} from "../types/Game.ts";
-import {useState} from "react";
+import type {Game, GameState} from "../types/Game.ts";
+import {useState, useEffect} from "react";
 import type {ApiCallMap} from "../services/api.ts";
-import type {AnyFormData, BidFormData, FormData} from "../types/form_types.ts";
+import type {AnyFormData} from "../types/form_types.ts";
 import {validationMap} from "../validation/handValidation";
+import { realGameApi } from "../services/api";
 
 export interface UseGameReturn {
     game: Game | null;
-    hand: Hand | null;
     state: GameState;
-    handState: HandState | null;
+    handState: string | undefined;
     formData: AnyFormData | undefined;
     usScore: number;
     themScore: number;
@@ -21,7 +21,7 @@ export interface UseGameReturn {
     onGameSubmit: (data?: any) => Promise<void>;
     onHandSubmit: (data?: AnyFormData) => Promise<void>;
     onResetGame: () => void;
-    onResetHand: () => void;
+    completedHands: Game[];
 }
 
 type GameActionMap = {
@@ -35,22 +35,30 @@ function createNewGame (
    setError: (value: string | null) => void,
    setGame: (value: Game | null) => void,
    setState: (value: GameState) => void,
-    setRequiredTricks: (value: number) => void
+    setRequiredTricks: (value: number) => void,
+    setUsScore: (value: number) => void,
+    setThemScore: (value: number) => void
 ): (data?: any) => Promise<void> {
     return async (_data?: any) => {
         console.log("Creating new game");
         console.log("Current state:", state);
         if (state !== 'NoGame') { return;}
+        console.log("Creating new game");
         setLoading(true);
         setError(null);
         try {
+            console.log("Calling api[state]");
+            console.log(api[state])
             const newGame = await api[state](undefined)??null;
             setGame(newGame);
-            console.log("New game:", newGame);
-            console.log("New game state:", newGame?.game_state || 'Not Set')
+            console.log("New game state: ", newGame?.game_state || 'Not Set')
+            console.log("New hand state: ", newGame?.hand_state || 'Not Set')
             setState(newGame?.game_state || 'NoGame');
             setRequiredTricks(newGame?.required_tricks || 0);
+            setUsScore(newGame?.us_score ?? 0);
+            setThemScore(newGame?.them_score ?? 0);
         } catch (e: any) {
+            console.log("Error creating game:", e);
             setError(e.message || "Failed to create game");
         } finally {
             setLoading(false);
@@ -59,53 +67,32 @@ function createNewGame (
 }
 
 function createNewHand(
-    state: GameState,
+    game_state: GameState,
     api: ApiCallMap,
     game: Game | null,
     setLoading: (value: boolean) => void,
     setError: (value: string | null) => void,
     setGame: (value: Game | null) => void,
     setState: (value: GameState) => void,
-    setHand: (value: Hand | null) => void,
-    setHandState: (value: HandState | null) => void,
-    setRequiredTricks: (value: number) => void
+    setTrump: (value?: string) => void
 ): (data?: any) => Promise<void> {
     return async (_data?: any) => {
-        // Allow new hand if game is WaitingToStart, or if game is InProgress and last hand is Completed
-        const handIsCompleted = game?.hand?.state === 'Completed';
-        console.log("Hand State: ", game?.hand?.state);
-        console.log("Game State: ", game?.game_state);
-        if (!(state === 'WaitingToStart' || (state === 'InProgress' && handIsCompleted))) {
-            console.log("Cannot create hand in state:", state, "hand completed:", handIsCompleted);
+        // Allow new hand if game is WaitingToStart, or if game is InProgress and hand_state is Completed or NoHand
+        const canStartHand =
+            game_state === 'WaitingToStart' ||
+            (game_state === 'InProgress' && (game?.hand_state === 'Completed' || game?.hand_state === 'NoHand'));
+
+        if (!canStartHand) {
+            console.log("Cannot create hand in state:", game_state, "hand_state:", game?.hand_state);
             return;
         }
         setLoading(true);
         setError(null);
         try {
-            console.log("Creating new hand");
-            let apiCall;
-            if (state === 'InProgress') {
-                console.log("In Pgogress state");
-                // Use startHand if hand is completed, otherwise use the hand phase function
-                if (handIsCompleted) {
-                    apiCall = api['WaitingToStart'];
-                } else {
-                    apiCall = api[state][game?.hand?.state];
-                }
-            } else {
-                console.log("Waiting to start state");
-                apiCall = api[state];
-            }
-            console.log("apiCall defined?", typeof apiCall === 'function' ? 'Yes' : 'No');
-            const newGame = await apiCall(game?.game_id) ?? null;
-            console.log("New Game:", newGame);
-            console.log("New Game State: ", newGame?.game_state);
-            console.log("New Hand State: ", newGame?.hand?.state);
+            const newGame = await api['WaitingToStart'](game?.game_id) ?? null;
             setGame(newGame || null);
             setState(newGame?.game_state || 'NoGame');
-            setHand(newGame?.hand || null);
-            setHandState(newGame?.hand?.state || null);
-            setRequiredTricks(newGame?.required_tricks || 0);
+            setTrump(newGame?.trump || '--');
         } catch (e: any) {
             setError(e.message || "Failed to create hand");
         } finally {
@@ -118,38 +105,33 @@ function createNewHand(
 function submitHandPhase(
     api: ApiCallMap,
     game: Game | null,
-    handState: HandState | null,
     setLoading: (value: boolean) => void,
     setError: (value: string | null) => void,
     setGame: (value: Game | null) => void,
-    setHand: (value: Hand | null) => void,
-    setHandState: (value: HandState | null) => void,
+    setState: (value: GameState) => void,
     setTrump: (value?: string) => void,
-    setRequiredTricks: (value: number) => void
+    setRequiredTricks: (value: number) => void,
+    setUsScore: (value: number) => void,
+    setThemScore: (value: number) => void
 ): (formData: AnyFormData) => Promise<void> {
     return async (formData: AnyFormData) => {
-
-        if (!game || !game.game_id || !handState) return;
-
+        if (!game || !game.game_id) return;
+        const handState = game.hand_state;
         const errors = validationMap[handState](formData as any);
-
         if (Object.keys(errors).length > 0) {
             console.log("Validation errors:", errors);
-            setError(JSON.stringify(errors)); // You may want to set this as an object in real usage
+            setError("Validation error");
             return;
         }
-
-        setError(null);
         setLoading(true);
-
         try {
             const newGame = await api[game.game_state][handState](game.game_id, formData);
-
             setGame(newGame || null);
-            setHand(newGame?.hand || null);
-            setHandState(newGame?.hand?.state || null);
+            setState(newGame?.game_state || 'NoGame');
             setTrump(newGame?.trump || '--');
-            setRequiredTricks(newGame?.hand?.required_tricks || 0);
+            setRequiredTricks(newGame?.required_tricks || 0);
+            setUsScore(newGame?.us_score ?? 0);
+            setThemScore(newGame?.them_score ?? 0);
         } catch (e: any) {
             setError(e.message || "Failed to submit form");
         } finally {
@@ -158,43 +140,64 @@ function submitHandPhase(
     }
 }
 
+// Helper to determine if a new hand can be started
+function isHandReadyForNew(handState: string | null | undefined) {
+    return handState === 'NoHand' || handState === 'Completed' || handState == null;
+}
+
 export const useGame = (api: ApiCallMap) : UseGameReturn => {
     const [state, setState] = useState<GameState>('NoGame');
-    const [handState, setHandState] = useState<HandState>('NoHand');
     const [game, setGame] = useState<Game | null>(null);
-    const [hand, setHand] = useState<Hand | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [usScore, setUsScore] = useState(0);
     const [themScore, setThemScore] = useState(0);
     const [trump, setTrump] = useState('--');
     const [requiredTricks, setRequiredTricks] = useState(0);
+    const [completedHands, setCompletedHands] = useState<Game[]>([]);
+
+    // Helper to fetch completed hands
+    const fetchCompletedHands = async (gameId: string) => {
+        try {
+            console.log("Fetching completed hands for game ID:", gameId);
+            const resp = await api.getCompletedHands(gameId);
+            setCompletedHands(resp);
+        } catch (e) {
+            console.log("Error fetching completed hands:", e)
+            setCompletedHands([]);
+        }
+    };
+
+    // Update completed hands only when game is InProgress and hand_state is WaitingForBid
+    useEffect(() => {
+        if (game?.game_id && game.game_state === 'InProgress' && game.hand_state === 'WaitingForBid') {
+            fetchCompletedHands(game.game_id);
+        }
+    }, [game?.game_id, game?.game_state, game?.hand_state]);
 
     const gameActionMap: GameActionMap = {
-        NoGame: createNewGame(state, api, setLoading, setError, setGame, setState, setRequiredTricks),
-        WaitingToStart: createNewHand(state, api, game, setLoading, setError, setGame, setState, setHand, setHandState, setRequiredTricks),
+        NoGame: createNewGame(state, api, setLoading, setError, setGame, setState, setRequiredTricks, setUsScore, setThemScore),
+        WaitingToStart: createNewHand(state, api, game, setLoading, setError, setGame, setState, setTrump),
         InProgress: async() => {}, // Not used for game-level
-        Completed: createNewGame(state, api, setLoading, setError, setGame, setState, setRequiredTricks),
+        Completed: createNewGame(state, api, setLoading, setError, setGame, setState, setRequiredTricks, setUsScore, setThemScore),
     };
 
     // Compose onGameSubmit for game phases
     let onGameSubmit: (data?: any) => Promise<void> = gameActionMap[state];
     // Compose onHandSubmit for hand phases
     let onHandSubmit: (data?: AnyFormData) => Promise<void> = async () => {};
-    const effectiveHandState = handState ?? 'NoHand';
-    if (state === 'InProgress' && effectiveHandState !== 'NoHand' && effectiveHandState !== 'Completed') {
-        onHandSubmit = submitHandPhase(api, game, effectiveHandState, setLoading, setError, setGame, setHand, setHandState, setTrump, setRequiredTricks);
-    } else if (effectiveHandState === 'NoHand' || effectiveHandState === 'Completed') {
-        onHandSubmit = createNewHand(state, api, game, setLoading, setError, setGame, setState, setHand, setHandState, setRequiredTricks);
+    if (state === 'InProgress' && game?.hand_state !== 'NoHand' && game?.hand_state !== 'Completed' && game?.hand_state != null) {
+        onHandSubmit = submitHandPhase(api, game, setLoading, setError, setGame, setState, setTrump, setRequiredTricks, setUsScore, setThemScore);
+    } else if (isHandReadyForNew(game?.hand_state)) {
+        onHandSubmit = createNewHand(state, api, game, setLoading, setError, setGame, setState, setTrump);
     }
 
     const formData: AnyFormData | undefined = undefined; // TODO: Populate with actual form data as needed
 
     return {
         game: game,
-        hand: hand,
-        state: state,
-        handState: handState,
+        state: state || 'NoGame',
+        handState: game?.hand_state || 'NoHand',
         formData: formData,
         usScore: usScore,
         themScore: themScore,
@@ -205,8 +208,8 @@ export const useGame = (api: ApiCallMap) : UseGameReturn => {
         onGameSubmit,
         onHandSubmit,
         onResetGame: () => { setGame(null); setState('NoGame'); },
-        onResetHand: () => { setHand(null); setHandState('NoHand'); },
         loading: loading,
-        error: error
+        error: error,
+        completedHands: completedHands,
     };
 }

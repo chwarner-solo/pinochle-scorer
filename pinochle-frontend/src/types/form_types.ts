@@ -20,4 +20,4 @@ export type FormData = {
     [K in HandState]: FormSchema[K];
 }
 
-export type AnyFormData = FormSchema[keyof FormSchema];
+export type AnyFormData = (FormSchema[keyof FormSchema]) & { resetForm?: () => void };

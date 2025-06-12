@@ -1,9 +1,8 @@
 import './App.css';
 
-import Index from "./pages";
+import Index from './pages';
 
 function App() {
-
   return (
     <>
       <Index/>

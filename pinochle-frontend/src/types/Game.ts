@@ -8,11 +8,23 @@ export type HandState = typeof HandStateValues[number];
 export type GameState = 'NoGame' | 'WaitingToStart' | 'InProgress' | 'Completed';
 
 export interface Game {
-    game_id: string;
-    game_state: GameState;
-    current_dealer: 'North' | 'South' | 'East' | 'West';
-    completed_hands: Hand[];
-    hand?: Hand
+    game_id?: string;
+    game_state?: GameState;
+    dealer?: Player;
+    hand_state?: HandState;
+    bidder?: Player | null;
+    bid_amount?: number | null;
+    trump?: Suit | null;
+    us_meld?: number | null;
+    them_meld?: number | null;
+    us_tricks?: number | null;
+    them_tricks?: number | null;
+    us_score?: number | null;
+    them_score?: number | null;
+    // Add required_tricks to match backend
+    required_tricks?: number;
+    us_hand_score?: number;
+    them_hand_score?: number;
 }
 
 export interface Hand {

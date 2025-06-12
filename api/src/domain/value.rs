@@ -66,16 +66,24 @@ impl fmt::Display for Player {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum GameState {
+    NoGame,
     WaitingToStart,
     InProgress,
     Completed,
 }
 
+impl Default for GameState {
+    fn default() -> Self {
+        GameState::NoGame
+    }
+}
+
 impl fmt::Display for GameState {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            GameState::NoGame => write!(f, "NoGame"),
             GameState::WaitingToStart => write!(f, "WaitingToStart"),
             GameState::InProgress => write!(f, "InProgress"),
             GameState::Completed => write!(f, "Completed"),

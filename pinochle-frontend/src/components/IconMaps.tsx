@@ -12,16 +12,16 @@ type SuitIconMap = {
 // Unicode arrow icons for player directions (as React components)
 export const PlayerIcons: PlayerIconMap = {
   North: ({ className }) => (
-    <span className={className}>↓</span> // North points South
+    <span className={className}>↑</span> // North points up
   ),
   South: ({ className }) => (
-    <span className={className}>↑</span> // South points North
+    <span className={className}>↓</span> // South points down
   ),
   East: ({ className }) => (
-    <span className={className}>←</span> // East points West
+    <span className={className}>→</span> // East points right
   ),
   West: ({ className }) => (
-    <span className={className}>→</span> // West points East
+    <span className={className}>←</span> // West points left
   ),
 };
 

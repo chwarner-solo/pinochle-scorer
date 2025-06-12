@@ -69,6 +69,7 @@ impl Hand {
             HandState::NoMarriage { bid_amount, .. } => Some(bid_amount),
             HandState::WaitingForMeld { bid_amount, .. } => Some(bid_amount),
             HandState::WaitingForTricks { bid_amount, .. } => Some(bid_amount),
+            HandState::Completed { bid_amount, .. } => Some(bid_amount),
             _ => None
         }
     }
@@ -323,14 +324,11 @@ impl Hand {
     }
     
     pub fn tricks_to_save(&self) -> Option<u32> {
-        if self.bid_amount().is_none() {
-            return None;
+        match self.state {
+            HandState::WaitingForTricks {bidder,bid_amount, us_meld, them_meld, ..}
+            | HandState::Completed{bidder,bid_amount, us_meld, them_meld, ..} => Some(Hand::required_tricks(bid_amount, us_meld, them_meld, bidder.team())),
+            _ => None
         }
-        let them_meld = self.state.them_meld().unwrap_or(0);
-        let us_meld = self.state.us_meld().unwrap_or(0);
-        let bid_amount = self.bid_amount.unwrap_or(0);
-        
-        Some(Hand::required_tricks(bid_amount, Some(us_meld), Some(them_meld), self.bidder?.team()))
     }
 
     fn required_tricks(bid_amount: u32, us_meld: Option<u32>, them_meld: Option<u32>, bidding_team: Team) -> u32 {

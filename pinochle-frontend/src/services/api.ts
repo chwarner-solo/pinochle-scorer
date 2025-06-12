@@ -80,6 +80,11 @@ export const gameApi = {
         });
 
         return response.data;
+    },
+
+    async getCompletedHands(gameId: string): Promise<Hand[]> {
+        const response = await apiClient.get(`/${gameId}/completed_hands`);
+        return response.data;
     }
 
 }
@@ -103,7 +108,8 @@ export const realGameApi: ApiCallMap = {
     NoGame: gameApi.createGame,
     WaitingToStart: gameApi.startHand,
     Completed: gameApi.getGame,
-    InProgress: handApi
+    InProgress: handApi,
+    getCompletedHands: gameApi.getCompletedHands
 };
 
 export type ApiCallMap = {
@@ -111,4 +117,6 @@ export type ApiCallMap = {
 
 } & {
     InProgress: HandApi
+} & {
+    getCompletedHands: (gameId: string) => Promise<Hand[]>
 }

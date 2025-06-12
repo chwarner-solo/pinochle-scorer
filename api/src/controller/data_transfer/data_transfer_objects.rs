@@ -1,28 +1,12 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use crate::application::RunningTotal;
-use crate::domain::{Game, Hand, Player, Suit};
+use crate::domain::{Game, Hand, Player, Suit, GameState};
+use crate::domain::Player::South;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct StartNewGameRequest {
     pub dealer: Player,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct StartNewGameResponse {
-    game_id: Uuid,
-    dealer: Player,
-    game_state: String
-}
-
-impl From<&Game> for StartNewGameResponse {
-    fn from(game: &Game) -> Self {
-        Self {
-            game_id: game.id().0,
-            dealer: game.current_dealer(),
-            game_state: game.state().to_string()
-        }
-    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -30,28 +14,27 @@ pub struct StartNewHandRequest {
     pub(crate) game_id: Uuid
 }
 
-#[derive(Debug, Clone, Serialize)]
-pub struct StartNewHandResponse {
-    game_id: Uuid,
-    dealer: Player,
-    hand: Option<HandResponse>,
-    game_state: String
+#[derive(Debug, Clone, Deserialize)]
+pub struct RecordBidRequest {
+    pub player: Player,
+    pub bid: u32
 }
 
-impl From<&Game> for StartNewHandResponse {
-    fn from(game: &Game) -> Self {
+#[derive(Debug, Clone, Deserialize)]
+pub struct DeclareTrumpRequest {
+    pub trump: Suit
+}
 
-        let Game {id,  .. } = game;
-        let current_hand = game.current_hand();
-        let dealer = game.current_dealer();
+#[derive(Debug, Clone, Deserialize)]
+pub struct RecordMeldRequest {
+    pub us_meld: u32,
+    pub them_meld: u32,
+}
 
-        Self {
-            game_id: game.id().0,
-            dealer,
-            hand: Option::from(HandResponse::from(current_hand.as_ref())),
-            game_state: game.state().to_string()
-        }
-    }
+#[derive(Debug, Clone, Deserialize)]
+pub struct RecordTricksRequest {
+    pub us_tricks: u32,
+    pub them_tricks: u32
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -79,211 +62,6 @@ impl From<&RunningTotal> for RunningTotalResponse {
         Self {
             us_total: value.us,
             them_total: value.them
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct RecordBidRequest {
-    pub player: Player,
-    pub bid: u32
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct RecordBidResponse {
-    pub game_id: Uuid,
-    pub game_state: String,
-    pub hand: Option<HandResponse>,
-    pub bidder: Option<Player>,
-    pub bid_amount: Option<u32>,
-    pub hand_state: String
-}
-
-impl From<&Game> for RecordBidResponse {
-    fn from(game: &Game) -> Self {
-        if let Some(current_hand) = game.current_hand() {
-            tracing::info!("current_hand: {:?}", current_hand);
-            if let Some(bidder) = current_hand.bidder() {
-                tracing::info!("bidder: {:?}", bidder );
-            } else {
-                tracing::info!("no bidder on current hand");
-            }
-        }
-        Self {
-            game_id: game.id().0,
-            game_state: game.state().to_string(),
-            bidder: game.current_hand().and_then(|h| h.bidder()),
-            hand: Option::from(HandResponse::from(game.current_hand().as_ref())),
-            bid_amount: game.current_hand().and_then(|h| h.bid_amount()),
-            hand_state: game.current_hand().unwrap().state().to_string()
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct DeclareTrumpRequest {
-    pub trump: Suit
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct DeclareTrumpResponse {
-    pub game_id: Uuid,
-    pub game_state: String,
-    pub hand: Option<HandResponse>,
-    pub bidder: String,
-    pub bid_amount: u32,
-    pub trump: String,
-    pub hand_state: String
-}
-
-impl From<&Game> for DeclareTrumpResponse {
-
-    fn from(game: &Game) -> Self {
-        let (trump, hand_state, bidder, bid_amount) = game
-            .current_hand()
-            .and_then(|hand| {
-                Some((
-                    hand.trump().map(|t| t.to_string()).unwrap_or_default(),
-                    hand.state().to_string(),
-                    hand.bidder().map(|p| p.to_string()).unwrap_or_default(),
-                    hand.bid_amount(),
-                ))
-            })
-            .unwrap_or_else(|| ("".to_string(), "".to_string(), "".to_string(), None));
-
-        Self {
-            game_id: game.id().0,
-            game_state: game.state().to_string(),
-            hand: Some(HandResponse::from(game.current_hand().as_ref())),
-            bidder,
-            bid_amount: bid_amount.unwrap_or(0),
-            trump,
-            hand_state
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct RecordMeldRequest {
-    pub us_meld: u32,
-    pub them_meld: u32,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct RecordMeldResponse {
-    pub game_id: Uuid,
-    pub game_state: String,
-    pub bidder: String,
-    pub bid_amount: u32,
-    pub trump: String,
-    pub us_meld: u32,
-    pub them_meld: u32,
-    pub hand_state: String,
-    pub hand: Option<HandResponse>,
-}
-
-impl From<&Game> for RecordMeldResponse {
-    fn from(value: &Game) -> Self {
-        let(bidder, bid_amount, trump, us_meld, them_meld, hand_state) = value
-            .current_hand()
-            .map(|h| (
-                h.bidder().map(|p| p.to_string()).unwrap_or_default(),
-                h.bid_amount(),
-                h.trump().map(|t| t.to_string()).unwrap_or_default(),
-                h.us_meld(),
-                h.them_meld(),
-                h.state().to_string()
-            ))
-            .unwrap_or_else(|| (
-                "".to_string(),
-                None,
-                "".to_string(),
-                None,
-                None,
-                "".to_string()
-            ));
-        let hand = value.current_hand().map(HandResponse::from);
-
-        Self {
-            game_id: value.id().0,
-            game_state: value.state().to_string(),
-            bidder,
-            bid_amount: bid_amount.unwrap_or(0),
-            trump,
-            us_meld: us_meld.unwrap_or(0),
-            them_meld: them_meld.unwrap_or(0),
-            hand_state,
-            hand
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct RecordTricksRequest {
-    pub us_tricks: u32,
-    pub them_tricks: u32
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct RecordTricksResponse {
-    pub game_id: Uuid,
-    pub game_state: String,
-    pub bidder: String,
-    pub bid_amount: u32,
-    pub trump: String,
-    pub us_meld: u32,
-    pub them_meld: u32,
-    pub us_tricks: u32,
-    pub them_tricks: u32,
-    pub us_total: i32,
-    pub them_total: i32,
-    pub hand_state: String,
-    pub hand: Option<HandResponse>,
-}
-
-impl From<&Game> for RecordTricksResponse {
-    fn from(value: &Game) -> Self {
-        let (bidder, bid_amount, trump, us_meld, them_meld, us_tricks, them_tricks, us_total, them_total, hand_state) = value
-            .current_hand()
-            .map(|h| (
-                h.bidder().map(|p| p.to_string()).unwrap_or_default(),
-                h.bid_amount(),
-                h.trump().map(|t| t.to_string()).unwrap_or_default(),
-                h.us_meld(),
-                h.them_meld(),
-                h.us_tricks(),
-                h.them_tricks(),
-                h.us_total(),
-                h.them_total(),
-                h.state().to_string()
-            ))
-            .unwrap_or_else(|| (
-                "".to_string(), // bidder
-                None, // bid_amount
-                "".to_string(), // trump
-                None, // us_meld
-                None, // them_meld
-                None, // us_tricks
-                None, // them_tricks
-                0, // us_total
-                0, // them_total
-                "".to_string() // hand_state
-            ));
-        let hand = value.current_hand().map(HandResponse::from);
-        Self {
-            game_id: value.id().0,
-            game_state: value.state().to_string(),
-            bidder,
-            bid_amount: bid_amount.unwrap_or(0),
-            trump,
-            us_meld: us_meld.unwrap_or(0),
-            them_meld: them_meld.unwrap_or(0),
-            us_tricks: us_tricks.unwrap_or(0),
-            them_tricks: them_tricks.unwrap_or(0),
-            us_total,
-            them_total,
-            hand_state,
-            hand,
         }
     }
 }
@@ -362,5 +140,81 @@ impl From<Option<&Hand>> for HandResponse {
             them_tricks: None,
             required_tricks: None,
         })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GameResponse {
+    pub game_id: Uuid,
+    pub game_state: Option<GameState>,
+    pub dealer: Option<Player>,
+    pub hand_state: Option<String>,
+    pub bidder: Option<Player>,
+    pub bid_amount: Option<u32>,
+    pub trump: Option<Suit>,
+    pub us_meld: Option<u32>,
+    pub them_meld: Option<u32>,
+    pub us_tricks: Option<u32>,
+    pub them_tricks: Option<u32>,
+    pub us_score: Option<i32>,
+    pub them_score: Option<i32>,    
+    pub us_hand_score: Option<i32>,
+    pub them_hand_score: Option<i32>,
+    pub required_tricks: Option<u32>,
+}
+
+impl From<&Game> for GameResponse {
+    fn from(game: &Game) -> Self {
+        let hand = game.current_hand();
+        let (us_score, them_score) = game.running_totals();
+        let required_tricks = game.current_hand().and_then(|h| h.tricks_to_save());
+        let us_hand_score = game.current_hand().and_then(|h| Some(h.us_total()));
+        let them_hand_score = game.current_hand().and_then(|h| Some(h.them_total()));
+        let (us_score, them_score) = game.running_totals();
+
+        GameResponse {
+            game_id: game.id().0,
+            game_state: Some(game.state()),
+            dealer: Some(game.current_dealer()),
+            hand_state: hand.clone().map(|h| h.state().to_string()),
+            bidder: hand.clone().and_then(|h| h.bidder()),
+            bid_amount: hand.clone().and_then(|h| h.bid_amount()),
+            trump: hand.clone().and_then(|h| h.trump()),
+            us_meld: hand.clone().and_then(|h| h.us_meld()),
+            them_meld: hand.clone().and_then(|h| h.them_meld()),
+            us_tricks: hand.clone().and_then(|h| h.us_tricks()),
+            them_tricks: hand.clone().and_then(|h| h.them_tricks()),
+            us_hand_score,
+            them_hand_score,
+            required_tricks,
+            us_score: Some(us_score),
+            them_score: Some(them_score),
+        }
+    }
+}
+
+impl From<Option<&Game>> for GameResponse {
+    fn from(game_opt: Option<&Game>) -> Self {
+        match game_opt {
+            Some(game) => GameResponse::from(game),
+            None => GameResponse {
+                game_id: Uuid::nil(),
+                game_state: Some(GameState::NoGame),
+                dealer: None,
+                hand_state: None,
+                bidder: None,
+                bid_amount: None,
+                trump: None,
+                us_meld: None,
+                them_meld: None,
+                us_tricks: None,
+                them_tricks: None,
+                us_score: None,
+                them_score: None,
+                us_hand_score: None,
+                them_hand_score: None,
+                required_tricks: None,
+            }
+        }
     }
 }

@@ -1,11 +1,11 @@
 import React from "react";
-import type { Game, Hand } from "../types/Game";
+import type { Game } from "../types/Game";
 
 interface GameHandAdminPanelProps {
   game: Game | null;
-  hand: Hand | null;
   onResetGame: () => void;
   onResetHand: () => void;
+  completedHands?: Array<any>;
 }
 
 const panelStyle: React.CSSProperties = {
@@ -28,7 +28,8 @@ const buttonStyle: React.CSSProperties = {
   cursor: "pointer",
 };
 
-const GameHandAdminPanel: React.FC<GameHandAdminPanelProps> = ({ game, hand, onResetGame, onResetHand }) => {
+const GameHandAdminPanel: React.FC<GameHandAdminPanelProps> = ({ game, onResetGame, onResetHand, completedHands }) => {
+  const firstHand = completedHands && completedHands.length > 0 ? completedHands[0] : null;
   return (
     <div style={panelStyle}>
       <h3>Game & Hand Admin Panel</h3>
@@ -44,9 +45,9 @@ const GameHandAdminPanel: React.FC<GameHandAdminPanelProps> = ({ game, hand, onR
         <strong>Game:</strong>
         <pre style={{ background: '#eee', padding: 8, borderRadius: 4, overflowX: 'auto' }}>{JSON.stringify(game, null, 2)}</pre>
       </div>
-      <div>
-        <strong>Hand:</strong>
-        <pre style={{ background: '#eee', padding: 8, borderRadius: 4, overflowX: 'auto' }}>{JSON.stringify(hand, null, 2)}</pre>
+      <div style={{ marginBottom: 12 }}>
+        <strong>First Completed Hand:</strong>
+        <pre style={{ background: '#eef', padding: 8, borderRadius: 4, overflowX: 'auto' }}>{firstHand ? JSON.stringify(firstHand, null, 2) : 'None'}</pre>
       </div>
       <div>
         <strong>Game State:</strong>
@@ -56,7 +57,8 @@ const GameHandAdminPanel: React.FC<GameHandAdminPanelProps> = ({ game, hand, onR
           ];
           let gameState = game?.game_state;
           if (!gameState && game === null) gameState = 'NoGame';
-          if (!gameState || !validGameStates.includes(gameState)) {
+          if (!gameState) gameState = 'NoGame';
+          if (!validGameStates.includes(gameState)) {
             return <pre style={{ background: '#fee', color: '#c00', padding: 8, borderRadius: 4, fontWeight: 'bold' }}>Not Set</pre>;
           }
           return <pre style={{ background: '#eee', padding: 8, borderRadius: 4 }}>{gameState}</pre>;
@@ -68,9 +70,10 @@ const GameHandAdminPanel: React.FC<GameHandAdminPanelProps> = ({ game, hand, onR
           const validHandStates = [
             'NoHand', 'WaitingForBid', 'WaitingForTrump', 'WaitingForMeld', 'WaitingForTricks', 'Completed', 'NoMarriage'
           ];
-          let handState = hand?.state;
-          if (!handState && hand === null) handState = 'NoHand';
-          if (!handState || !validHandStates.includes(handState)) {
+          let handState = game?.hand_state;
+          if (!handState && game === null) handState = 'NoHand';
+          if (!handState) handState = 'NoHand';
+          if (!validHandStates.includes(handState)) {
             return <pre style={{ background: '#fee', color: '#c00', padding: 8, borderRadius: 4, fontWeight: 'bold' }}>Not Set</pre>;
           }
           return <pre style={{ background: '#eee', padding: 8, borderRadius: 4 }}>{handState}</pre>;
