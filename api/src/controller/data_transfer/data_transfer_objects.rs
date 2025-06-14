@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::application::RunningTotal;
-use crate::domain::{Game, Hand, Player, Suit, GameState};
+use crate::application::{GameStatus, RunningTotal};
+use crate::domain::{Game, Hand, Player, Suit, GameState, HandState};
 use crate::domain::Player::South;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -62,6 +62,45 @@ impl From<&RunningTotal> for RunningTotalResponse {
         Self {
             us_total: value.us,
             them_total: value.them
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct GetGameStateResponse {
+    id: Uuid,
+    game_state: Option<GameState>,
+    hand_state: Option<HandState>,
+    current_dealer: Option<Player>,
+    bidder: Option<Player>,
+    bid_amount: Option<u32>,
+    us_meld: Option<u32>,
+    them_meld: Option<u32>,
+    us_tricks: Option<u32>,
+    them_tricks: Option<u32>,
+    us_total: Option<i32>,
+    them_total: Option<i32>,
+    us_running_total: i32,    
+    them_running_total: i32,
+}
+
+impl From<GameStatus> for GetGameStateResponse {
+    fn from(value: GameStatus) -> Self {
+        Self { 
+            id: value.id,
+            game_state: value.game_state,
+            hand_state: value.hand_state,
+            current_dealer: value.current_dealer,
+            bidder: value.bidder,
+            bid_amount: value.bid_amount,
+            us_meld: value.us_meld,
+            them_meld: value.them_meld,
+            us_tricks: value.us_tricks,
+            them_tricks: value.them_tricks,
+            us_total: value.us_total,
+            them_total: value.them_total,
+            us_running_total: value.us_running_total,
+            them_running_total: value.them_running_total
         }
     }
 }
@@ -160,7 +199,7 @@ pub struct GameResponse {
     pub them_score: Option<i32>,    
     pub us_hand_score: Option<i32>,
     pub them_hand_score: Option<i32>,
-    pub required_tricks: Option<u32>,
+    pub required_tricks: Option<u32>
 }
 
 impl From<&Game> for GameResponse {

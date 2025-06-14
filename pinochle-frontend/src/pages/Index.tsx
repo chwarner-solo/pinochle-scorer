@@ -5,45 +5,12 @@ import GameHandAdminPanel from '../components/GameHandAdminPanel';
 import HandsTableCard from '../components/HandsTableCard';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { TableSeatButton } from '../components/TableSeatButton';
-import BidEntry from '../components/BidEntryBox';
 import { MeldEntryBox } from '../components/MeldEntryBox';
 import { TricksEntryBox } from '../components/TricksEntryBox';
-import type { Player, Suit } from '../types/Game';
+import type {Game, Suit} from '../types/Game';
 import BidEntryBox from "../components/BidEntryBox";
-
-// --- Types for Seat Mappings ---
-type Seat = 'N' | 'E' | 'S' | 'W';
-type PlayerToSeatMap = { [K in Player]: Seat };
-type SeatToPlayerMap = { [K in Seat]: Player };
-
-// Helper to map full player name to seat code
-const playerToSeatMap: PlayerToSeatMap = {
-  North: 'N',
-  East: 'E',
-  South: 'S',
-  West: 'W',
-};
-const playerToSeat = (player?: string) => player && playerToSeatMap[player as Player] ? playerToSeatMap[player as Player] : '';
-
-// Helper to map seat code to full player name
-const seatToPlayerMap: SeatToPlayerMap = {
-  N: 'North',
-  E: 'East',
-  S: 'South',
-  W: 'West',
-};
-const seatToPlayer = (seat: string): Player => {
-  if (seatToPlayerMap[seat as Seat]) return seatToPlayerMap[seat as Seat];
-  throw new Error('Invalid seat');
-};
-
-// --- Helper to get seat code for a player, fallback to '' ---
-const getBidderSeat = (bidder: string | undefined): Seat | '' => {
-  if (!bidder) return '';
-  // Defensive: Accept both seat code ('S') or player name ('South')
-  if (['N', 'E', 'S', 'W'].includes(bidder)) return bidder as Seat;
-  return playerToSeatMap[bidder as Player] || '';
-};
+import HandComplete from '../components/handcomplete/HandComplete';
+import { HandEntryStartHand } from '../components/HandEntryStartHand';
 
 // --- Suit Icon Map ---
 const SuitIconMap: { [K in Suit]: React.ReactNode } = {
@@ -228,45 +195,6 @@ const TrumpSelectionBox: React.FC<{
   </div>
 );
 
-// --- Bid Data Form Component ---
-interface BidDataFormProps {
-  bid: number;
-  setBid: (amt: number) => void;
-  submitting: boolean;
-  onSubmit: () => void;
-}
-
-const BidDataForm: React.FC<BidDataFormProps> = ({ bid, setBid, submitting, onSubmit }) => (
-  <form
-    className="flex flex-col items-center gap-2"
-    onSubmit={e => {
-      e.preventDefault();
-      onSubmit();
-    }}
-  >
-    <label className="text-lg font-semibold text-gray-700">
-      Bid Amount:
-      <input
-        type="number"
-        min={50}
-        max={250}
-        step={1}
-        value={bid}
-        onChange={e => setBid(Number(e.target.value))}
-        className="ml-2 border px-2 py-1 rounded w-24 text-center"
-        disabled={submitting}
-      />
-    </label>
-    <button
-      type="submit"
-      className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-6 rounded shadow text-base mt-2"
-      disabled={submitting}
-    >
-      Submit Bid
-    </button>
-  </form>
-);
-
 // --- User Interaction Zone ---
 interface UserInteractionZoneProps {
   gameState: string;
@@ -305,7 +233,6 @@ const UserInteractionZone: React.FC<UserInteractionZoneProps> = ({
   loading,
   onStartGame,
   onStartHand,
-  onResetHand,
   selectedSeat,
   setSelectedSeat,
   bid,
@@ -359,21 +286,22 @@ const UserInteractionZone: React.FC<UserInteractionZoneProps> = ({
       </div>
     );
   }
-  if (gameState === 'InProgress' && handState === 'WaitingForBid') {
+  if (gameState === 'Completed') {
     return (
       <div className="flex flex-col items-center justify-center w-full px-6 py-3">
-        <span className="text-lg font-semibold text-gray-700 mb-2">Enter Bidder Seat & Bid:</span>
-        <BidEntryBox
-          selected={selectedSeat}
-          onSelect={setSelectedSeat}
-          bid={bid}
-          setBid={setBid}
-          onSubmit={handleSubmitBid}
-          submitting={submitting}
-        />
+        <div className="text-2xl font-bold mb-4 text-green-700">Game Over!</div>
+        <div className="mb-4">Final Score: US <span className="font-mono">{game.us_score ?? 0}</span> - THEM <span className="font-mono">{game.them_score ?? 0}</span></div>
+        <button
+          className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg shadow disabled:opacity-60 disabled:cursor-not-allowed text-lg"
+          onClick={onStartGame}
+          disabled={loading}
+        >
+          {loading ? 'Starting...' : 'Start Game'}
+        </button>
       </div>
     );
   }
+
   if (gameState === 'InProgress' && handState === 'WaitingForMeld') {
     return (
       <div className="flex flex-col items-center justify-center w-full px-6 py-3">
@@ -416,29 +344,29 @@ const UserInteractionZone: React.FC<UserInteractionZoneProps> = ({
     );
   }
   if (gameState === 'InProgress' && handState === 'Completed') {
-    const showHandScore = handState === 'Completed';
+    const handCompleteProps = {
+      trump: <TrumpSuitIcon suit={game?.trump} />,
+      usHandScore: game?.us_hand_score ?? 0,
+      themHandScore: game?.them_hand_score ?? 0,
+      usTotal: game?.us_score ?? 0,
+      themTotal: game?.them_score ?? 0,
+      bidder: game?.bidder ?? '',
+      bid: game?.bid_amount ?? 0,
+      reqTricks: game?.required_tricks ?? 0,
+      onStartHand: () => {},
+      usPrev: 0,
+      themPrev: 0,
+      usMeld: game?.us_meld ?? 0,
+      themMeld: game?.them_meld ?? 0,
+      usTricks: game?.us_tricks ?? 0,
+      themTricks: game?.them_tricks ?? 0,
+    };
+
     return (
       <div className="flex flex-col items-center justify-center w-full px-6 py-3">
-        <button
-          className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-8 rounded-lg shadow text-lg mt-4"
-          onClick={onStartHand}
-        >
-          Start Hand
-        </button>
-        {showHandScore && (
-          <div className="my-4 p-4 rounded-xl bg-blue-50 border border-blue-200 text-center">
-            <div className="text-lg font-bold mb-2">Hand Complete!</div>
-            <div>
-              US Hand Score: <span className="font-mono">{game.us_hand_score ?? 0}</span>
-            </div>
-            <div>
-              THEM Hand Score: <span className="font-mono">{game.them_hand_score ?? 0}</span>
-            </div>
-            <div className="mt-2">
-              Running Total: US <span className="font-mono">{game.us_score ?? 0}</span> - THEM <span className="font-mono">{game.them_score ?? 0}</span>
-            </div>
-          </div>
-        )}
+        <div className="w-full flex flex-col items-center">
+          <HandComplete {...handCompleteProps} />
+        </div>
       </div>
     );
   }
@@ -447,23 +375,36 @@ const UserInteractionZone: React.FC<UserInteractionZoneProps> = ({
 };
 
 // --- Main Page Refactor: manage bid/bidder/trump state at top level ---
-const PinochleUXExperimentPage: React.FC = () => {
+const Index: React.FC = () => {
   const gameHook = useGame(realGameApi);
   const { game, state, handState, loading, onGameSubmit, onHandSubmit, onResetHand, trump, completedHands } = gameHook;
   // ...other state and handlers
 
-  // Fetch running total and completed hands when Start Hand is clicked
+  // --- Track previous scores for US and THEM ---
+  // const [usPrev, setUsPrev] = useState(0);
+  // const [themPrev, setThemPrev] = useState(0);
+
+  // --- Update previous scores when hand is started ---
   const handleStartHand = async () => {
+    // Save current scores as previous before starting new hand
+    // setUsPrev(game?.us_score ?? 0);
+    // setThemPrev(game?.them_score ?? 0);
     if (!game?.game_id) return;
-    // Skipping running total and completed hands API calls for now
     await onHandSubmit({});
   };
+
+  // Fetch running total and completed hands when Start Hand is clicked
+  // const handleStartHand = async () => {
+  //   if (!game?.game_id) return;
+  //   // Skipping running total and completed hands API calls for now
+  //   await onHandSubmit({});
+  // };
 
   // --- UI State for Bidder, Bid, Trump, Meld, Tricks ---
   const [selectedSeat, setSelectedSeat] = useState('');
   useEffect(() => {
     if (!game?.bidder) setSelectedSeat('');
-    else setSelectedSeat(playerToSeat(game.bidder));
+    else setSelectedSeat(gameHook.playerToSeat(game.bidder));
   }, [game?.bidder]);
   const [bid, setBid] = useState(50);
   const [submitting, setSubmitting] = useState(false);
@@ -510,7 +451,7 @@ const PinochleUXExperimentPage: React.FC = () => {
   const handleSubmitBid = async () => {
     setSubmitting(true);
     try {
-      const bidForm = { bid, player: seatToPlayer(selectedSeat) };
+      const bidForm = { bid, player: gameHook.seatToPlayer(selectedSeat) };
       await onHandSubmit(bidForm);
     } finally {
       setSubmitting(false);
@@ -546,7 +487,7 @@ const PinochleUXExperimentPage: React.FC = () => {
   const showTags = state !== 'NoGame';
   const bidValue = showTags && game?.bid_amount ? game.bid_amount : 0;
   // Pass bidder and bid from game state for contract view and table
-  const tableBidderSeat = showTags && game?.bidder ? getBidderSeat(game.bidder) : '';
+  const tableBidderSeat = showTags && game?.bidder ? gameHook.getBidderSeat(game.bidder) : '';
 
   // Use selectedSeat during bidding, otherwise use backend bidder
   const visualBidderSeat =
@@ -554,7 +495,25 @@ const PinochleUXExperimentPage: React.FC = () => {
       ? selectedSeat
       : tableBidderSeat;
 
-  console.log('tableBidderSeat:', tableBidderSeat, 'game.bidder:', game?.bidder, 'visualBidderSeat:', visualBidderSeat);
+
+  // --- HandComplete props ---
+  const handCompleteProps = {
+    trump: <TrumpSuitIcon suit={game?.trump} />,
+    usHandScore: game?.us_hand_score ?? 0,
+    themHandScore: game?.them_hand_score ?? 0,
+    usTotal: game?.us_score ?? 0,
+    themTotal: game?.them_score ?? 0,
+    bidder: game?.bidder ?? '',
+    bid: game?.bid_amount ?? 0,
+    reqTricks: game?.required_tricks ?? 0,
+    onStartHand: handleStartHand,
+    usPrev: gameHook.usPrevScore,
+    themPrev: gameHook.themPrevScore,
+    usMeld: game?.us_meld ?? 0,
+    themMeld: game?.them_meld ?? 0,
+    usTricks: game?.us_tricks ?? 0,
+    themTricks: game?.them_tricks ?? 0,
+  };
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center bg-gray-100 py-6">
@@ -599,7 +558,7 @@ const PinochleUXExperimentPage: React.FC = () => {
             bidder={visualBidderSeat}
             bid={bidValue}
             requiredTricks={game?.required_tricks ?? 0}
-            dealerSeat={playerToSeat(game?.dealer)}
+            dealerSeat={gameHook.playerToSeat(game?.dealer)}
             bidderSeat={visualBidderSeat}
             onSeatClick={setSelectedSeat}
             selectedSeat={state === 'InProgress' && handState === 'WaitingForBid' ? selectedSeat : undefined}
@@ -614,9 +573,15 @@ const PinochleUXExperimentPage: React.FC = () => {
           <HandsTableCard completedHands={completedHands} />
           <GameHandAdminPanel game={game} completedHands={completedHands} />
         </div>
+        {/* Hand Complete celebration view */}
+        {handState === 'Completed' && (
+          <div className="w-full flex flex-col items-center">
+            <HandComplete {...handCompleteProps} />
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
-export default PinochleUXExperimentPage;
+export default Index;

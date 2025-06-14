@@ -21,7 +21,9 @@ use crate::application::{
     RecordMeld, RecordMeldError, 
     RecordTricks, RecordTricksError, 
     StartNewGame, StartNewGameError, 
-    StartNewHand, StartNewHandError};
+    StartNewHand, StartNewHandError,
+    GetGameStatus, GetGameStatusError, GameStatus
+};
 use crate::AppState;
 use crate::domain::{GameId, GameRepository, GameRepositoryError};
 use crate::infrastructure::InMemoryGameRepository;
@@ -44,7 +46,7 @@ use data_transfer::{StartNewGameRequest,
     RecordTricksRequest, 
     RunningTotalResponse, 
     StartNewHandRequest,
-    GameResponse,
+    GameResponse, GetGameStateResponse
 };
 use crate::controller::error_response::ToResponse;
 
@@ -92,13 +94,23 @@ pub async fn start_new_hand_handler(State(state): State<AppState>, Json(payload)
     Ok(Json(dto))
 }
 
+#[debug_handler]
+pub async fn get_game_status_handler(State(state): State<AppState>, Path(game_id): Path<String>) -> Result<Json<GetGameStateResponse>, AppError> {
+    let id = Uuid::parse_str(&game_id).map_err(|e| AppError::GetParseUuidError(game_id.clone()))?;
+    tracing::info!("get_game_status_handler");
+    let AppState { get_game_status, .. } = state;
+    let status = get_game_status.execute(GameId(id)).await?;
+    let dto = GetGameStateResponse::from(status);
+
+    Ok(Json(dto))
+}
 pub async fn get_completed_hands_handler(State(state): State<AppState>, Path(game_id): Path<String>) -> Result<Json<Vec<HandResponse>>, AppError> {
     let id = Uuid::parse_str(&game_id).map_err(|e| AppError::GetParseUuidError(game_id.clone()))?;
     tracing::info!("get_completed_hands_handler");
     let AppState { get_completed_hands, .. } = state;
     let hands = get_completed_hands.execute(GameId(id)).await?;
     let dto = hands.iter().map(HandResponse::from).collect();
-
+    
     Ok(Json(dto))
 }
 
@@ -185,6 +197,7 @@ pub fn router() -> Router {
     let get_completed_hands = Arc::new(GetCompletedHands::new(repo.clone()));
     let get_current_hand = Arc::new(GetCurrentHand::new(repo.clone()));
     let get_running_total = Arc::new(GetRunningTotal::new(repo.clone()));
+    let get_game_status = Arc::new(GetGameStatus::new(repo.clone()));
 
     let state = AppState {
         start_game,
@@ -196,10 +209,11 @@ pub fn router() -> Router {
         get_completed_hands,
         get_current_hand,
         get_running_total,
+        get_game_status,
     };
 
     let inner_router = Router::new()
-        .route("/", get(get_completed_hands_handler))
+        .route("/", get(get_game_status_handler))
         .route("/current_hand", get(get_current_hand_handler))
         .route("/running_total", get(get_running_total_handler))
         .route("/completed_hands", get(get_completed_hands_handler))
@@ -252,6 +266,8 @@ pub enum AppError {
     RecordTricksError(#[from] RecordTricksError),
     #[error(transparent)]
     GetCompletedHandsError(#[from] GetCompletedHandsError),
+    #[error(transparent)]
+    GetGameStatusError(#[from] GetGameStatusError),
     #[error(transparent)]
     GetCurrentHandError(#[from] GetCurrentHandError),
     #[error(transparent)]

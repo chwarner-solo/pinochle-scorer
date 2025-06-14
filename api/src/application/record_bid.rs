@@ -2,6 +2,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use crate::domain::{Game, GameError, GameId, GameRepository, GameRepositoryError, Player};
 use crate::infrastructure::InMemoryGameRepository;
+use tracing::{info, warn};
 
 pub struct RecordBid {
     pub game_repo: Arc<dyn GameRepository + Send + Sync>
@@ -15,14 +16,19 @@ impl RecordBid {
     }
 
     pub async fn execute(&self, game_id: GameId, player: Player, bid: u32) -> Result<Game, RecordBidError> {
+        info!(?game_id, player=?player, bid, "RecordBid: fetching game");
         let mut game = self.game_repo.find_by_id(game_id).await?;
         match game {
             Some(game) => {
+                info!(?game_id, player=?player, bid, "RecordBid: game found, recording bid");
                 let game = game.record_bid(player, bid)?;
                 self.game_repo.save(game.clone()).await?;
                 Ok(game)
             },
-            None => Err(RecordBidError::GameNotFound(game_id))
+            None => {
+                warn!(?game_id, player=?player, bid, "RecordBid: game NOT FOUND");
+                Err(RecordBidError::GameNotFound(game_id))
+            }
         }
     }
 }

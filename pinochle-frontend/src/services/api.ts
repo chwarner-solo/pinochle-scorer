@@ -1,12 +1,13 @@
 import axios from "axios";
-import type {Game, GameState, HandState, RunningTotal} from "../types/Game.ts";
+import type {Game, GameState, Hand, HandState, RunningTotal} from "../types/Game.ts";
 import type {BidFormData, FormData, MeldFormData, TricksFormData, TrumpFormData} from "../types/form_types.ts";
 
 export interface GameApi {
     createGame(): Promise<Game>;
 };
 
-const API_HOST = import.meta.env.VITE_API_HOST;
+// Default to localhost for unit/integration testing if VITE_API_HOST is not set
+const API_HOST = import.meta.env.VITE_API_HOST || "http://localhost:3000";
 const API_BASE = `${API_HOST}/api/games`;
 
 const apiClient = axios.create({
@@ -17,6 +18,23 @@ const apiClient = axios.create({
     },
 });
 
+export interface GameStatus {
+    id: string;
+    game_state?: GameState;
+    hand_state?: HandState | object | null;
+    current_dealer?: string;
+    bidder?: string | null;
+    bid_amount?: number | null;
+    us_meld?: number | null;
+    them_meld?: number | null;
+    us_tricks?: number | null;
+    them_tricks?: number | null;
+    us_total?: number | null;
+    them_total?: number | null;
+    us_running_total: number;
+    them_running_total: number;
+}
+
 export const gameApi = {
     async createGame(): Promise<Game | null> {
         const response = await apiClient.post('/', {
@@ -26,8 +44,10 @@ export const gameApi = {
         return response.data;
     },
 
-    async getGame(gameId: string | undefined): Promise<Game | null> {
-        const response = await apiClient.get(`/${gameId}`);
+    async getGame(gameId: string | undefined): Promise<GameStatus | null> {
+        console.log(`[API] GET game: /${gameId}`);
+        const response = await apiClient.get(`/${gameId}/`);
+        console.log(response.data);
         return response.data;
     },
 
@@ -59,8 +79,6 @@ export const gameApi = {
         const response = await apiClient.post(`/${gameId}/declare_trump`, {
             trump
         });
-
-        console.log(response.data);
         return response.data;
     },
 
@@ -74,6 +92,8 @@ export const gameApi = {
     },
 
     async recordTricks(gameId: string, {us_tricks, them_tricks}: TricksFormData) : Promise<Game> {
+        console.log('recording tricks - API Call');
+        console.log("Us Tricks: ", us_tricks, " Them Tricks:, them_tricks");
         const response = await apiClient.post(`/${gameId}/record_tricks`, {
             us_tricks,
             them_tricks

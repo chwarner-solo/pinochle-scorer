@@ -7,6 +7,7 @@ pub mod record_tricks;
 pub mod get_completed_hands;
 pub mod get_current_hand;
 pub mod get_running_total;
+pub mod get_game_status;
 
 pub use start_new_game::{StartNewGame, StartNewGameError};
 pub use start_new_hand::{StartNewHand, StartNewHandError};
@@ -17,3 +18,4 @@ pub use record_tricks::{RecordTricks, RecordTricksError};
 pub use get_completed_hands::{GetCompletedHands, GetCompletedHandsError};
 pub use get_current_hand::{GetCurrentHand, GetCurrentHandError};
 pub use get_running_total::{GetRunningTotal, GetRunningTotalError, RunningTotal};
+pub use get_game_status::{GetGameStatus, GetGameStatusError, GameStatus};

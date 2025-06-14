@@ -1,13 +1,5 @@
 import React from "react";
-
-interface BidEntryBoxProps {
-  selected: string;
-  onSelect: (seat: string) => void;
-  bid: number;
-  setBid: (amt: number) => void;
-  onSubmit: () => void;
-  submitting: boolean;
-}
+import type {BidEntryBoxProps} from "../types/component/user_interaction_zone.ts";
 
 const SEATS = ["N", "E", "S", "W"];
 

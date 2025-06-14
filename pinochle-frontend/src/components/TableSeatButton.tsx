@@ -54,8 +54,7 @@ export const TableSeatButton: React.FC<TableSeatButtonProps> = ({ seat, pos, isD
 
 export const Chair = (props: { seat: string; isDealer: boolean; isBidder: boolean }) => {
   const { seat, isDealer, isBidder } = props;
-  // Debug log
-  console.log('Chair render:', { seat, isDealer, isBidder });
+
   return (
     <span className="relative flex items-center justify-center w-full h-full">
       <span className="font-bold text-base bg-white/70 rounded px-1" style={{textShadow: '0 1px 2px #fff, 0 -1px 2px #fff'}}>

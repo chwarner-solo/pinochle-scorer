@@ -43,10 +43,8 @@ impl GameRepository for InMemoryGameRepository {
             };
 
             self.games.insert(game.id().clone(), updated_game);
-            tracing::info!("Updated game: {:#?}", self.find_by_id(game.id()).await?);
         } else {
             self.games.insert(game.id().clone(), game.clone());
-            tracing::info!("Inserted game: {:#?}", self.find_by_id(game.id()).await?);
         }
 
         Ok(())

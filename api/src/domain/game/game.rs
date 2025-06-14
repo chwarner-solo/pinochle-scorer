@@ -65,27 +65,30 @@ impl Game {
     }
 
     pub fn start_new_hand(&self) -> Result<Self, GameError> {
-        if self.state == GameState::Completed {
-            return Err(GameError::InvalidStateTransition(
-                "Cannot start new hand when game is already in progress".to_string()
-            ));
-        }
-        
-        match self.current_hand.clone() {
-            Some(hand) => {
-                Ok(self.complete_hand_and_start_new(hand))
+        match self.state {
+            GameState::Completed => {
+                return Err(GameError::InvalidOperation(
+                    "Cannot start new hand when game is completed".to_string()
+                ));
             },
-            None => {
-                let new_hand = Hand::new(self.current_dealer);
-                Ok(
-                    Self {
-                        state: GameState::InProgress,
-                        current_hand: Some(new_hand),
-                        ..self.clone()
-                    }
-                )
+            GameState::NoGame => {
+                return Err(GameError::InvalidOperation(
+                    "Cannot start new hand when no game exists".to_string()
+                ));
+            },
+            _ => {}
+        }
+        if let Some(hand) = &self.current_hand {
+            if !matches!(hand.state(), HandState::Completed { .. }) {
+                return Err(GameError::InvalidOperation("Cannot start new hand while current hand is active".to_string()));
             }
         }
+        let new_hand = Hand::new(self.current_dealer);
+        Ok(Self {
+            state: GameState::InProgress,
+            current_hand: Some(new_hand),
+            ..self.clone()
+        })
     }
 
     pub fn running_totals(&self) -> (i32, i32) {
@@ -146,11 +149,35 @@ impl Game {
 
         tracing::info!("Recording tricks: {0} {1}", us, them);
         let new_hand = current_hand.clone().record_tricks(us, them)?;
-        
-        Ok(Game {
-            current_hand: Some(new_hand),
-            ..self.clone()
-        })
+
+        // If the hand is completed, archive it but keep current_hand active
+        if matches!(new_hand.state(), HandState::Completed { .. }) {
+            let mut new_completed_hands = self.completed_hands.clone();
+            new_completed_hands.push(new_hand.clone());
+            let (us_total, them_total) = {
+                let temp_game = Game {
+                    completed_hands: new_completed_hands.clone(),
+                    ..self.clone()
+                };
+                temp_game.running_totals()
+            };
+            let new_state = if us_total >= 500 || them_total >= 500 {
+                GameState::Completed
+            } else {
+                GameState::InProgress
+            };
+            Ok(Game {
+                completed_hands: new_completed_hands,
+                current_hand: Some(new_hand),
+                state: new_state,
+                ..self.clone()
+            })
+        } else {
+            Ok(Game {
+                current_hand: Some(new_hand),
+                ..self.clone()
+            })
+        }
     }
 
     fn complete_hand_and_start_new(&self, new_hand: Hand) -> Game {

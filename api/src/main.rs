@@ -3,7 +3,7 @@ use axum::Router;
 use axum::routing::get;
 use tokio::sync::Mutex;
 use controller::router;
-use crate::application::{DeclareTrump, GetCompletedHands, GetCurrentHand, GetRunningTotal, RecordBid, RecordMeld, RecordTricks, StartNewGame, StartNewHand};
+use crate::application::{DeclareTrump, GetCompletedHands, GetCurrentHand, GetGameStatus, GetRunningTotal, RecordBid, RecordMeld, RecordTricks, StartNewGame, StartNewHand};
 use crate::domain::GameRepository;
 use crate::infrastructure::InMemoryGameRepository;
 use tower_http::trace::TraceLayer;
@@ -27,7 +27,8 @@ struct AppState {
     pub record_tricks: Arc<RecordTricks>,
     pub get_completed_hands: Arc<GetCompletedHands>,
     pub get_current_hand: Arc<GetCurrentHand>,
-    pub get_running_total: Arc<GetRunningTotal>
+    pub get_running_total: Arc<GetRunningTotal>,
+    pub get_game_status: Arc<GetGameStatus>
 }
 
 struct App {
