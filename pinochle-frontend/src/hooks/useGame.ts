@@ -22,6 +22,29 @@ export interface UseGameReturn {
     onHandSubmit: (data?: AnyFormData) => Promise<void>;
     onResetGame: () => void;
     completedHands: Game[];
+    selectedSeat: string;
+    setSelectedSeat: (seat: string) => void;
+    bid: number;
+    setBid: (amt: number) => void;
+    submittingBid: boolean;
+    handleSubmitBid: () => void;
+    selectedTrump: string;
+    setSelectedTrump: (trump: string) => void;
+    submittingTrump: boolean;
+    onTrumpClick: (suit: string) => void;
+    usMeld: number;
+    themMeld: number;
+    setUsMeld: (value: number) => void;
+    setThemMeld: (value: number) => void;
+    submittingMeld: boolean;
+    handleSubmitMeld: () => void;
+    usTricks: number;
+    themTricks: number;
+    setUsTricks: (value: number) => void;
+    setThemTricks: (value: number) => void;
+    submittingTricks: boolean;
+    handleSubmitTricks: () => void;
+    onStartHand: () => void;
 }
 
 type GameActionMap = {
@@ -155,6 +178,19 @@ export const useGame = (api: ApiCallMap) : UseGameReturn => {
     const [trump, setTrump] = useState('--');
     const [requiredTricks, setRequiredTricks] = useState(0);
     const [completedHands, setCompletedHands] = useState<Game[]>([]);
+    const [selectedSeat, setSelectedSeat] = useState("");
+    const [bid, setBid] = useState(50);
+    const [submittingBid, setSubmittingBid] = useState(false);
+    const [selectedTrump, setSelectedTrump] = useState("");
+    const [submittingTrump, setSubmittingTrump] = useState(false);
+    const [usMeld, setUsMeld] = useState(0);
+    const [themMeld, setThemMeld] = useState(0);
+    const [submittingMeld, setSubmittingMeld] = useState(false);
+    const [usTricks, setUsTricks] = useState(0);
+    const [themTricks, setThemTricks] = useState(0);
+    const [submittingTricks, setSubmittingTricks] = useState(false);
+
+    const seatToPlayerMap = { N: "North", E: "East", S: "South", W: "West" };
 
     // Helper to fetch completed hands
     const fetchCompletedHands = async (gameId: string) => {
@@ -192,6 +228,77 @@ export const useGame = (api: ApiCallMap) : UseGameReturn => {
         onHandSubmit = createNewHand(state, api, game, setLoading, setError, setGame, setState, setTrump);
     }
 
+    const handleSubmitBid = async () => {
+        const player = seatToPlayerMap[selectedSeat] || selectedSeat;
+        console.log('[handleSubmitBid] called with:', { selectedSeat, bid, player });
+        setSubmittingBid(true);
+        try {
+            const result = await onHandSubmit({ player, bid });
+            console.log('[handleSubmitBid] onHandSubmit result:', result);
+        } catch (e) {
+            console.error('[handleSubmitBid] error:', e);
+        } finally {
+            setSubmittingBid(false);
+        }
+    };
+
+    const handleTrumpClick = async (suit: string) => {
+        setSelectedTrump(suit);
+        setSubmittingTrump(true);
+        try {
+            const result = await onHandSubmit({ trump: suit });
+            console.log('[handleTrumpClick] onHandSubmit result:', result);
+        } catch (e) {
+            console.error('[handleTrumpClick] error:', e);
+        } finally {
+            setSubmittingTrump(false);
+        }
+    };
+
+    const handleSubmitMeld = async () => {
+        setSubmittingMeld(true);
+        try {
+            const result = await onHandSubmit({ us_meld: usMeld, them_meld: themMeld });
+            console.log('[handleSubmitMeld] onHandSubmit result:', result);
+        } catch (e) {
+            console.error('[handleSubmitMeld] error:', e);
+        } finally {
+            setSubmittingMeld(false);
+        }
+    };
+
+    const handleSubmitTricks = async () => {
+        setSubmittingTricks(true);
+        try {
+            const result = await onHandSubmit({
+                us_meld: usMeld,
+                them_meld: themMeld,
+                us_tricks: usTricks,
+                them_tricks: themTricks
+            });
+            console.log('[handleSubmitTricks] onHandSubmit result:', result);
+        } catch (e) {
+            console.error('[handleSubmitTricks] error:', e);
+        } finally {
+            setSubmittingTricks(false);
+        }
+    };
+
+    const handleStartHand = async () => {
+        setUsMeld(0);
+        setThemMeld(0);
+        setUsTricks(0);
+        setThemTricks(0);
+        setSelectedTrump(""); // Ensure trump is reset
+        setSubmittingTrump(false);
+        setSelectedSeat("");
+        setBid(50); // Ensure bid is reset
+        setSubmittingBid(false);
+        setSubmittingMeld(false);
+        setSubmittingTricks(false);
+        await onHandSubmit({}); // Backend call to start new hand
+    };
+
     const formData: AnyFormData | undefined = undefined; // TODO: Populate with actual form data as needed
 
     return {
@@ -211,5 +318,28 @@ export const useGame = (api: ApiCallMap) : UseGameReturn => {
         loading: loading,
         error: error,
         completedHands: completedHands,
+        selectedSeat,
+        setSelectedSeat,
+        bid,
+        setBid,
+        submittingBid,
+        handleSubmitBid,
+        selectedTrump,
+        setSelectedTrump,
+        submittingTrump,
+        onTrumpClick: handleTrumpClick,
+        usMeld,
+        themMeld,
+        setUsMeld,
+        setThemMeld,
+        submittingMeld,
+        handleSubmitMeld,
+        usTricks,
+        themTricks,
+        setUsTricks,
+        setThemTricks,
+        submittingTricks,
+        handleSubmitTricks,
+        onStartHand: handleStartHand,
     };
 }

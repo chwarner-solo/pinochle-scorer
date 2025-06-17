@@ -10,6 +10,7 @@ import { MeldEntryBox } from '../components/MeldEntryBox';
 import { TricksEntryBox } from '../components/TricksEntryBox';
 import type { Player, Suit } from '../types/Game';
 import BidEntryBox from "../components/BidEntryBox";
+import UserInteractionZone from "../components/user_interaction_zone";
 
 // --- Types for Seat Mappings ---
 type Seat = 'N' | 'E' | 'S' | 'W';
@@ -267,189 +268,10 @@ const BidDataForm: React.FC<BidDataFormProps> = ({ bid, setBid, submitting, onSu
   </form>
 );
 
-// --- User Interaction Zone ---
-interface UserInteractionZoneProps {
-  gameState: string;
-  handState: string;
-  loading: boolean;
-  onStartGame: () => void;
-  onStartHand: () => void;
-  onResetHand: () => void;
-  selectedSeat: string;
-  setSelectedSeat: (seat: string) => void;
-  bid: number;
-  setBid: (amt: number) => void;
-  submitting: boolean;
-  handleSubmitBid: () => void;
-  selectedTrump: string;
-  submittingTrump: boolean;
-  onTrumpClick: (suit: string) => void;
-  usMeld: number;
-  themMeld: number;
-  setUsMeld: (val: number) => void;
-  setThemMeld: (val: number) => void;
-  handleSubmitMeld: () => void;
-  submittingMeld: boolean;
-  usTricks: number;
-  themTricks: number;
-  setUsTricks: (val: number) => void;
-  setThemTricks: (val: number) => void;
-  handleSubmitTricks: () => void;
-  submittingTricks: boolean;
-  game: Game;
-}
-
-const UserInteractionZone: React.FC<UserInteractionZoneProps> = ({
-  gameState,
-  handState,
-  loading,
-  onStartGame,
-  onStartHand,
-  onResetHand,
-  selectedSeat,
-  setSelectedSeat,
-  bid,
-  setBid,
-  submitting,
-  handleSubmitBid,
-  selectedTrump,
-  submittingTrump,
-  onTrumpClick,
-  usMeld,
-  themMeld,
-  setUsMeld,
-  setThemMeld,
-  handleSubmitMeld,
-  submittingMeld,
-  usTricks,
-  themTricks,
-  setUsTricks,
-  setThemTricks,
-  handleSubmitTricks,
-  submittingTricks,
-  game,
-}) => {
-  useEffect(() => {
-    if (handState === 'WaitingForBid') setBid(50);
-  }, [handState]);
-
-  if (gameState === 'NoGame') {
-    return (
-      <div className="flex items-center justify-center w-full px-6 py-3">
-        <button
-          className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg shadow disabled:opacity-60 disabled:cursor-not-allowed text-lg"
-          onClick={onStartGame}
-          disabled={loading}
-        >
-          {loading ? 'Starting...' : 'Start Game'}
-        </button>
-      </div>
-    );
-  }
-  if (gameState === 'WaitingToStart') {
-    return (
-      <div className="flex items-center justify-center w-full px-6 py-3">
-        <button
-          className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg shadow disabled:opacity-60 disabled:cursor-not-allowed text-lg"
-          onClick={onStartHand}
-          disabled={loading}
-        >
-          {loading ? 'Starting...' : 'Start Hand'}
-        </button>
-      </div>
-    );
-  }
-  if (gameState === 'InProgress' && handState === 'WaitingForBid') {
-    return (
-      <div className="flex flex-col items-center justify-center w-full px-6 py-3">
-        <span className="text-lg font-semibold text-gray-700 mb-2">Enter Bidder Seat & Bid:</span>
-        <BidEntryBox
-          selected={selectedSeat}
-          onSelect={setSelectedSeat}
-          bid={bid}
-          setBid={setBid}
-          onSubmit={handleSubmitBid}
-          submitting={submitting}
-        />
-      </div>
-    );
-  }
-  if (gameState === 'InProgress' && handState === 'WaitingForMeld') {
-    return (
-      <div className="flex flex-col items-center justify-center w-full px-6 py-3">
-        <span className="text-lg font-semibold text-gray-700 mb-2">Enter Melds:</span>
-        <MeldEntryBox
-          usMeld={usMeld}
-          themMeld={themMeld}
-          setUsMeld={setUsMeld}
-          setThemMeld={setThemMeld}
-          onSubmit={handleSubmitMeld}
-          submitting={submittingMeld}
-        />
-      </div>
-    );
-  }
-  if (gameState === 'InProgress' && handState === 'WaitingForTricks') {
-    return (
-      <div className="flex flex-col items-center justify-center w-full px-6 py-3">
-        <span className="text-lg font-semibold text-gray-700 mb-2">Enter Tricks:</span>
-        <TricksEntryBox
-          usTricks={usTricks}
-          themTricks={themTricks}
-          setUsTricks={setUsTricks}
-          setThemTricks={setThemTricks}
-          onSubmit={handleSubmitTricks}
-          submitting={submittingTricks}
-        />
-      </div>
-    );
-  }
-  if (gameState === 'InProgress' && handState === 'WaitingForTrump') {
-    return (
-      <div className="flex flex-col items-center justify-center w-full px-6 py-3">
-        <TrumpSelectionBox
-          selectedTrump={selectedTrump}
-          onTrumpClick={onTrumpClick}
-          submitting={submittingTrump}
-        />
-      </div>
-    );
-  }
-  if (gameState === 'InProgress' && handState === 'Completed') {
-    const showHandScore = handState === 'Completed';
-    return (
-      <div className="flex flex-col items-center justify-center w-full px-6 py-3">
-        <button
-          className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-8 rounded-lg shadow text-lg mt-4"
-          onClick={onStartHand}
-        >
-          Start Hand
-        </button>
-        {showHandScore && (
-          <div className="my-4 p-4 rounded-xl bg-blue-50 border border-blue-200 text-center">
-            <div className="text-lg font-bold mb-2">Hand Complete!</div>
-            <div>
-              US Hand Score: <span className="font-mono">{game.us_hand_score ?? 0}</span>
-            </div>
-            <div>
-              THEM Hand Score: <span className="font-mono">{game.them_hand_score ?? 0}</span>
-            </div>
-            <div className="mt-2">
-              Running Total: US <span className="font-mono">{game.us_score ?? 0}</span> - THEM <span className="font-mono">{game.them_score ?? 0}</span>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-  // Placeholder for other states
-  return <div className="h-12" />;
-};
-
 // --- Main Page Refactor: manage bid/bidder/trump state at top level ---
 const PinochleUXExperimentPage: React.FC = () => {
   const gameHook = useGame(realGameApi);
-  const { game, state, handState, loading, onGameSubmit, onHandSubmit, onResetHand, trump, completedHands } = gameHook;
+  const { game, state, handState, loading, onGameSubmit, onHandSubmit, onResetHand, trump, completedHands, selectedSeat, setSelectedSeat, bid, setBid, submittingBid, handleSubmitBid, selectedTrump, submittingTrump, onTrumpClick, usMeld, themMeld, setUsMeld, setThemMeld, submittingMeld, handleSubmitMeld, usTricks, setUsTricks, themTricks, setThemTricks, handleSubmitTricks, submittingTricks } = gameHook;
   // ...other state and handlers
 
   // Fetch running total and completed hands when Start Hand is clicked
@@ -459,45 +281,6 @@ const PinochleUXExperimentPage: React.FC = () => {
     await onHandSubmit({});
   };
 
-  // --- UI State for Bidder, Bid, Trump, Meld, Tricks ---
-  const [selectedSeat, setSelectedSeat] = useState('');
-  useEffect(() => {
-    if (!game?.bidder) setSelectedSeat('');
-    else setSelectedSeat(playerToSeat(game.bidder));
-  }, [game?.bidder]);
-  const [bid, setBid] = useState(50);
-  const [submitting, setSubmitting] = useState(false);
-  const [selectedTrump, setSelectedTrump] = useState('');
-  const [submittingTrump, setSubmittingTrump] = useState(false);
-  const [usMeld, setUsMeld] = useState(0);
-  const [themMeld, setThemMeld] = useState(0);
-  const [submittingMeld, setSubmittingMeld] = useState(false);
-  const [usTricks, setUsTricks] = useState(0);
-  const [themTricks, setThemTricks] = useState(0);
-  const [submittingTricks, setSubmittingTricks] = useState(false);
-
-  // --- Reset trump selection when entering WaitingForTrump ---
-  useEffect(() => {
-    if (handState === 'WaitingForTrump') {
-      setSelectedTrump('');
-    }
-  }, [handState]);
-
-  // --- Reset trump selection when hand or game is complete ---
-  useEffect(() => {
-    if (handState === 'Complete' || state === 'Complete') {
-      setSelectedTrump('');
-    }
-  }, [handState, state]);
-
-  // --- Reset meld values when entering WaitingForMeld ---
-  useEffect(() => {
-    if (handState === 'WaitingForMeld') {
-      setUsMeld(0);
-      setThemMeld(0);
-    }
-  }, [handState]);
-
   // --- Reset tricks values when entering WaitingForTricks ---
   useEffect(() => {
     if (handState === 'WaitingForTricks') {
@@ -505,42 +288,6 @@ const PinochleUXExperimentPage: React.FC = () => {
       setThemTricks(0);
     }
   }, [handState]);
-
-  // --- Handlers for Bid, Trump, Meld, Tricks ---
-  const handleSubmitBid = async () => {
-    setSubmitting(true);
-    try {
-      const bidForm = { bid, player: seatToPlayer(selectedSeat) };
-      await onHandSubmit(bidForm);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-  const handleTrumpClick = async (suit: string) => {
-    setSelectedTrump(suit);
-    setSubmittingTrump(true);
-    try {
-      await onHandSubmit({ trump: suit });
-    } finally {
-      setSubmittingTrump(false);
-    }
-  };
-  const handleSubmitMeld = async () => {
-    setSubmittingMeld(true);
-    try {
-      await onHandSubmit({ us_meld: usMeld, them_meld: themMeld });
-    } finally {
-      setSubmittingMeld(false);
-    }
-  };
-  const handleSubmitTricks = async () => {
-    setSubmittingTricks(true);
-    try {
-      await onHandSubmit({ us_tricks: usTricks, them_tricks: themTricks });
-    } finally {
-      setSubmittingTricks(false);
-    }
-  };
 
   // Only show tags if we are not in 'NoGame' state
   const showTags = state !== 'NoGame';
@@ -572,17 +319,17 @@ const PinochleUXExperimentPage: React.FC = () => {
             setSelectedSeat={setSelectedSeat}
             bid={bid}
             setBid={setBid}
-            submitting={submitting}
+            submitting={submittingBid}
             handleSubmitBid={handleSubmitBid}
             selectedTrump={selectedTrump}
             submittingTrump={submittingTrump}
-            onTrumpClick={handleTrumpClick}
+            onTrumpClick={onTrumpClick}
             usMeld={usMeld}
             themMeld={themMeld}
             setUsMeld={setUsMeld}
             setThemMeld={setThemMeld}
-            handleSubmitMeld={handleSubmitMeld}
             submittingMeld={submittingMeld}
+            handleSubmitMeld={handleSubmitMeld}
             usTricks={usTricks}
             themTricks={themTricks}
             setUsTricks={setUsTricks}
