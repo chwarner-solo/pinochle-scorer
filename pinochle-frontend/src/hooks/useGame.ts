@@ -3,7 +3,6 @@ import {useState, useEffect} from "react";
 import type {ApiCallMap} from "../services/api.ts";
 import type {AnyFormData} from "../types/form_types.ts";
 import {validationMap} from "../validation/handValidation";
-import type { HandCompleteProps } from "../components/handcomplete/HandComplete";
 import type { UserInteractionZoneProps } from '../types/component/user_interaction_zone';
 
 // --- Types for Seat Mappings ---
@@ -351,6 +350,77 @@ export const useGame = (api: ApiCallMap) : UseGameReturn => {
 
     const formData: AnyFormData | undefined = undefined; // TODO: Populate with actual form data as needed
 
+    // --- User Interaction Zone Views Structure ---
+    const views = {
+        NoGame: {
+            onSubmit: onGameSubmit,
+            dealer: selectedSeat || "South",
+            loading,
+        },
+        WaitingToStart: {
+            onSubmit: onHandSubmit,
+            loading,
+        },
+        InProgress: {
+            WaitingForBid: {
+                bidEntryBoxProps: {
+                    selected: selectedSeat,
+                    onSelect: setSelectedSeat,
+                    bid,
+                    setBid,
+                    submitting,
+                },
+                onSubmit: handleSubmitBid,
+            },
+            WaitingForTrump: {
+                formData: { trump: selectedTrump },
+                onHandSubmit: (data) => handleTrumpClick(data.trump),
+                loading: submittingTrump,
+                error,
+            },
+            WaitingForMeld: {
+                usMeld,
+                themMeld,
+                setUsMeld,
+                setThemMeld,
+                onSubmit: handleSubmitMeld,
+                submitting: submittingMeld,
+            },
+            WaitingForTricks: {
+                usTricks,
+                themTricks,
+                setUsTricks,
+                setThemTricks,
+                onSubmit: handleSubmitTricks,
+                submitting: submittingTricks,
+            },
+            Completed: {
+                trump,
+                usHandScore: game?.us_hand_score ?? 0,
+                themHandScore: game?.them_hand_score ?? 0,
+                usTotal: game?.us_score ?? 0,
+                themTotal: game?.them_score ?? 0,
+                bidder: game?.bidder ?? "",
+                bid: game?.bid_amount ?? 0,
+                reqTricks: game?.required_tricks ?? 0,
+                onStartHand: async () => {
+                    if (!game?.game_id) return;
+                    await onHandSubmit({});
+                },
+                usPrev: usPrevScore,
+                themPrev: themPrevScore,
+                usMeld: game?.us_meld ?? 0,
+                themMeld: game?.them_meld ?? 0,
+                usTricks: game?.us_tricks ?? 0,
+                themTricks: game?.them_tricks ?? 0,
+            },
+        },
+        Completed: {
+            onSubmit: onGameSubmit,
+            loading,
+        },
+    };
+
     return {
         game: game,
         state: state || 'NoGame',
@@ -392,55 +462,7 @@ export const useGame = (api: ApiCallMap) : UseGameReturn => {
         user_interaction_zone: {
             gameState: state,
             handState: game?.hand_state || 'NoHand',
-            loading,
-            onStartGame: onGameSubmit,
-            onStartHand: async () => {
-                if (!game?.game_id) return;
-                await onHandSubmit({});
-            },
-            onResetHand: () => {}, // TODO: wire up if needed
-            selectedSeat,
-            setSelectedSeat,
-            bid,
-            setBid,
-            submitting,
-            handleSubmitBid,
-            selectedTrump,
-            submittingTrump,
-            onTrumpClick: handleTrumpClick,
-            usMeld,
-            themMeld,
-            setUsMeld,
-            setThemMeld,
-            handleSubmitMeld,
-            submittingMeld,
-            usTricks,
-            themTricks,
-            setUsTricks,
-            setThemTricks,
-            handleSubmitTricks,
-            submittingTricks,
-            game,
-            hand_complete: {
-                trump,
-                usHandScore: game?.us_hand_score ?? 0,
-                themHandScore: game?.them_hand_score ?? 0,
-                usTotal: game?.us_score ?? 0,
-                themTotal: game?.them_score ?? 0,
-                bidder: game?.bidder ?? '',
-                bid: game?.bid_amount ?? 0,
-                reqTricks: game?.required_tricks ?? 0,
-                onStartHand: async () => {
-                    if (!game?.game_id) return;
-                    await onHandSubmit({});
-                },
-                usPrev: usPrevScore,
-                themPrev: themPrevScore,
-                usMeld: game?.us_meld ?? 0,
-                themMeld: game?.them_meld ?? 0,
-                usTricks: game?.us_tricks ?? 0,
-                themTricks: game?.them_tricks ?? 0,
-            },
+            views,
         },
     };
 }

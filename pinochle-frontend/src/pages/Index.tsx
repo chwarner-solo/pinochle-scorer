@@ -11,6 +11,7 @@ import type {Game, Suit} from '../types/Game';
 import BidEntryBox from "../components/BidEntryBox";
 import HandComplete from '../components/handcomplete/HandComplete';
 import { HandEntryStartHand } from '../components/HandEntryStartHand';
+import UIZ2 from '../components/UserInteractionZone';
 
 // --- Suit Icon Map ---
 const SuitIconMap: { [K in Suit]: React.ReactNode } = {
@@ -520,35 +521,11 @@ const Index: React.FC = () => {
       <div className="w-full max-w-3xl bg-white rounded-3xl shadow-xl border border-gray-200 flex flex-col divide-y divide-gray-200">
         {/* User Interaction Zone with Error Boundary */}
         <ErrorBoundary>
-          <UserInteractionZone
+          {/* Swap out old UserInteractionZone for new UIZ2 */}
+          <UIZ2
             gameState={state}
             handState={handState as string}
-            loading={loading}
-            onStartGame={onGameSubmit}
-            onStartHand={handleStartHand}
-            onResetHand={onResetHand}
-            selectedSeat={selectedSeat}
-            setSelectedSeat={setSelectedSeat}
-            bid={bid}
-            setBid={setBid}
-            submitting={submitting}
-            handleSubmitBid={handleSubmitBid}
-            selectedTrump={selectedTrump}
-            submittingTrump={submittingTrump}
-            onTrumpClick={handleTrumpClick}
-            usMeld={usMeld}
-            themMeld={themMeld}
-            setUsMeld={setUsMeld}
-            setThemMeld={setThemMeld}
-            handleSubmitMeld={handleSubmitMeld}
-            submittingMeld={submittingMeld}
-            usTricks={usTricks}
-            themTricks={themTricks}
-            setUsTricks={setUsTricks}
-            setThemTricks={setThemTricks}
-            handleSubmitTricks={handleSubmitTricks}
-            submittingTricks={submittingTricks}
-            game={game}
+            views={gameHook.user_interaction_zone.views}
           />
         </ErrorBoundary>
         {/* Table Visualization Zone */}

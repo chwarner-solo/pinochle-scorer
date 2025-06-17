@@ -1,10 +1,11 @@
 import React from "react";
-import type {GameState, HandState} from "../Game.ts";
+import type {GameState, HandState, Player} from "../Game.ts";
 import type { HandCompleteProps } from '../../components/handcomplete/HandComplete';
 
 // --- Per-state prop bundles ---
 export type NoGameProps = { 
-  onSubmit: () => void 
+  onSubmit: () => void;
+  dealer?: Player;
 };
 
 export type WaitingToStartProps = { 
@@ -41,6 +42,10 @@ export type BidEntryBoxProps = {
   submitting: boolean;
 };
 
+export type StartHandProps = {
+  onSubmit: () => void;
+};
+
 export type GameStateProps = {
   NoGame: NoGameProps;
   WaitingToStart: WaitingToStartProps;
@@ -53,7 +58,7 @@ export type HandStateProps = {
   WaitingForTrump: HandEntryTrumpProps;
   WaitingForMeld: HandEntryMeldProps;
   WaitingForTricks: HandEntryTricksProps;
-  HandComplete: HandCompleteProps;
+  Completed: HandCompleteProps;
   NoMarriage: HandEntryMeldProps;
 };
 
