@@ -34,7 +34,7 @@ output "github_secrets" {
     WIF_SERVICE_ACCOUNT  = module.iam.wif_service_account_email
 
     # Artifact Registry and Storage
-    ARTIFACT_REGISTRY_REPO = "your-artifact-repo"  # Update with your repo name
+    ARTIFACT_REGISTRY_REPO = module.artifact_registry.repository_name
     GCS_BUCKET_NAME        = var.bucket_name
   }
 }
@@ -119,8 +119,8 @@ output "setup_instructions" {
   description = "Next steps to complete your setup"
   value = {
     step_1 = "Copy the 'github_secrets' values above to your GitHub repository secrets"
-    step_2 = "Create Artifact Registry repository: gcloud artifacts repositories create your-repo-name --repository-format=docker --location=${var.region}"
-    step_3 = "Update ARTIFACT_REGISTRY_REPO in your GitHub secrets with the actual repo name"
+    step_2 = "Artifact Registry repository is automatically created: ${module.artifact_registry.repository_name}"
+    step_3 = "ARTIFACT_REGISTRY_REPO is automatically set in GitHub secrets output"
     step_4 = "Push your code to trigger the deployment pipeline"
     step_5 = "Monitor deployment: ${module.load_balancer.frontend_url}"
 

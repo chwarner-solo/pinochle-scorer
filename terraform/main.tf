@@ -60,6 +60,22 @@ module "cloudsql" {
 }
 
 # ============================================================================
+# Container Registry - Docker images for deployment
+# ============================================================================
+module "artifact_registry" {
+  source = "./modules/artifact-registry"
+
+  project                           = var.project
+  region                           = var.region
+  repository_name                  = var.artifact_registry_repository_name
+  labels                          = local.common_labels
+  github_actions_service_account  = module.iam.wif_service_account_email
+  cloudrun_service_account        = module.iam.cloudrun_service_account_email
+
+  depends_on = [module.iam]
+}
+
+# ============================================================================
 # Application Layer - Frontend and API
 # ============================================================================
 

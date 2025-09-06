@@ -18,6 +18,12 @@ variable "region" {
   default     = "us-central1"
 }
 
+variable "artifact_registry_repository_name" {
+  description = "Name of the Artifact Registry Docker repository"
+  type        = string
+  default     = "pinochle-docker-repo"
+}
+
 variable "environment" {
   description = "Environment name (dev, staging, prod)"
   type        = string
