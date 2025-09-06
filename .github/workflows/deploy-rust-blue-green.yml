@@ -124,7 +124,7 @@ jobs:
       - name: Debug - Check build outputs
         run: |
           echo "Build job outputs:"
-          echo "image-tag: ${{ needs.build.outputs.image_tag }}"
+          echo "image-tag: ${{ needs.build-and-push.outputs.image_tag }}"
           echo "Full needs context: ${{ toJson(needs) }}"
 
       - name: Authenticate to Google Cloud
