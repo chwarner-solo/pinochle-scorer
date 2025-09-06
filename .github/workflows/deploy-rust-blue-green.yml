@@ -107,6 +107,9 @@ jobs:
           
           echo "image-tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "🐳 Built and pushed: $IMAGE_TAG"
+          echo "DEBUG: IMAGE_TAG variable contains: '$IMAGE_TAG'"
+          echo "DEBUG: GITHUB_OUTPUT file contents:"
+          cat $GITHUB_OUTPUT
 
   deploy:
     needs: build
