@@ -16,34 +16,24 @@ fn main() {
     }
 
     // Install dependencies - handle npm bug with optional dependencies
+    println!("Installing frontend dependencies...");
+    
+    // Always remove node_modules and package-lock.json first to handle npm optional dependencies bug
     let node_modules = frontend_dir.join("node_modules");
-    if !node_modules.exists() {
-        println!("Installing frontend dependencies...");
+    let package_lock = frontend_dir.join("package-lock.json");
+    
+    let _ = std::fs::remove_dir_all(&node_modules);
+    let _ = std::fs::remove_file(&package_lock);
+    
+    // Use npm install instead of npm ci to avoid optional dependencies bug
+    let status = Command::new("npm")
+        .args(&["install"])
+        .current_dir(frontend_dir)
+        .status()
+        .expect("Failed to run npm install - make sure Node.js is installed");
         
-        // First try npm ci
-        let status = Command::new("npm")
-            .args(&["ci"])
-            .current_dir(frontend_dir)
-            .status()
-            .expect("Failed to run npm ci - make sure Node.js is installed");
-        
-        if !status.success() {
-            println!("npm ci failed, trying workaround for npm optional dependencies bug...");
-            
-            // Remove node_modules and package-lock.json, then npm install
-            let _ = std::fs::remove_dir_all(&node_modules);
-            let _ = std::fs::remove_file(frontend_dir.join("package-lock.json"));
-            
-            let status = Command::new("npm")
-                .args(&["install"])
-                .current_dir(frontend_dir)
-                .status()
-                .expect("Failed to run npm install");
-                
-            if !status.success() {
-                panic!("npm install also failed");
-            }
-        }
+    if !status.success() {
+        panic!("npm install failed");
     }
 
     // Build the React app (skip TypeScript checks for quick deployment)
@@ -60,7 +50,7 @@ fn main() {
 
     // Copy build output to target directory for easy access
     let out_dir = env::var("OUT_DIR").unwrap();
-    let build_src = frontend_dir.join("build");
+    let build_src = frontend_dir.join("dist"); // Vite outputs to "dist", not "build"
     let build_dst = Path::new(&out_dir).join("../../../frontend-build");
     
     if build_src.exists() {
