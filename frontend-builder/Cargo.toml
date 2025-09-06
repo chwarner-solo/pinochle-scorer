@@ -1,0 +1,10 @@
+[package]
+name = "frontend-builder"
+version = "0.1.0"
+edition = "2021"
+description = "Builds the React frontend as part of the Rust workspace"
+
+# This is a build-time only crate
+[[bin]]
+name = "frontend-builder"
+path = "src/main.rs"
