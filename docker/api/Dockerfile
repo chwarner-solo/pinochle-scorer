@@ -8,16 +8,18 @@ RUN apk add --no-cache \
 RUN rustup target add x86_64-unknown-linux-musl
 
 WORKDIR /app
+RUN mkdir api frontend-builder
 COPY Cargo.toml Cargo.lock ./
-COPY api/Cargo.toml ./api/
+COPY frontend-builder/Cargo.toml frontend-builder
+copy frontend-builder/src frontend-builder/src
+COPY api/Cargo.toml api
+COPY api/src api/src
 
-RUN mkdir api/src && echo "fn main() {}" > api/src/main.rs
-RUN cargo build --release --target x86_64-unknown-linux-musl -p api
-RUN rm -fr api/src
-
-COPY api/src ./api/src
-RUN touch api/src/main.rs
-RUN cargo build --release --target x86_64-unknown-linux-musl -p api
+RUN cargo build \
+    --workspace \
+    --release  \
+    --target x86_64-unknown-linux-musl  \
+    -p api
 
 FROM scratch
 COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/api /api
