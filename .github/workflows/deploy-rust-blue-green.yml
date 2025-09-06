@@ -69,7 +69,7 @@ jobs:
       contents: read
       id-token: write
     outputs:
-      image-tag: ${{ steps.build-and-push.outputs.image-tag }}
+      image_tag: ${{ steps.build-and-push.outputs.image_tag }}
 
     steps:
       - uses: actions/checkout@v4
@@ -105,7 +105,7 @@ jobs:
           docker push $IMAGE_TAG
           docker push $LATEST_TAG
           
-          echo "image-tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "🐳 Built and pushed: $IMAGE_TAG"
           echo "DEBUG: IMAGE_TAG variable contains: '$IMAGE_TAG'"
           echo "DEBUG: GITHUB_OUTPUT file contents:"
@@ -124,7 +124,7 @@ jobs:
       - name: Debug - Check build outputs
         run: |
           echo "Build job outputs:"
-          echo "image-tag: ${{ needs.build.outputs.image-tag }}"
+          echo "image-tag: ${{ needs.build.outputs.image_tag }}"
           echo "Full needs context: ${{ toJson(needs) }}"
 
       - name: Authenticate to Google Cloud
@@ -150,7 +150,7 @@ jobs:
         run: |
           # Deploy new revision with no traffic initially
           gcloud run deploy ${{ env.SERVICE_NAME }} \
-            --image ${{ needs.build.outputs.image-tag }} \
+            --image ${{ needs.build.outputs.image_tag }} \
             --region ${{ env.REGION }} \
             --allow-unauthenticated \
             --no-traffic \
