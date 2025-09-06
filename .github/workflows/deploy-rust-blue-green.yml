@@ -103,7 +103,7 @@ jobs:
             .
           
           docker push $IMAGE_TAG
-          docker push $LATEST
+          docker push $LATEST_TAG
           
           echo "image-tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "🐳 Built and pushed: $IMAGE_TAG"
