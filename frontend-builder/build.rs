@@ -15,10 +15,12 @@ fn main() {
         panic!("Frontend directory not found at ../pinochle-frontend");
     }
 
-    // Install dependencies if node_modules doesn't exist or package-lock.json is newer
+    // Install dependencies - handle npm bug with optional dependencies
     let node_modules = frontend_dir.join("node_modules");
     if !node_modules.exists() {
         println!("Installing frontend dependencies...");
+        
+        // First try npm ci
         let status = Command::new("npm")
             .args(&["ci"])
             .current_dir(frontend_dir)
@@ -26,7 +28,21 @@ fn main() {
             .expect("Failed to run npm ci - make sure Node.js is installed");
         
         if !status.success() {
-            panic!("npm ci failed");
+            println!("npm ci failed, trying workaround for npm optional dependencies bug...");
+            
+            // Remove node_modules and package-lock.json, then npm install
+            let _ = std::fs::remove_dir_all(&node_modules);
+            let _ = std::fs::remove_file(frontend_dir.join("package-lock.json"));
+            
+            let status = Command::new("npm")
+                .args(&["install"])
+                .current_dir(frontend_dir)
+                .status()
+                .expect("Failed to run npm install");
+                
+            if !status.success() {
+                panic!("npm install also failed");
+            }
         }
     }
 

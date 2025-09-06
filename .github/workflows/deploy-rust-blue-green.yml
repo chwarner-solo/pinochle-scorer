@@ -36,6 +36,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: pinochle-frontend/package-lock.json
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -43,8 +50,6 @@ jobs:
 
       - name: Cache dependencies
         uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: rust-app
 
       - name: Run tests
         run: |
