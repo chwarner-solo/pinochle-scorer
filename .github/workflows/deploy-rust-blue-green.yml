@@ -150,7 +150,7 @@ jobs:
         run: |
           # Deploy new revision with no traffic initially
           gcloud run deploy ${{ env.SERVICE_NAME }} \
-            --image ${{ needs.build.outputs.image_tag }} \
+            --image ${{ needs.build-and-push.outputs.image_tag }} \
             --region ${{ env.REGION }} \
             --allow-unauthenticated \
             --no-traffic \
