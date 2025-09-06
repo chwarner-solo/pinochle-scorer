@@ -11,6 +11,7 @@ use tracing_subscriber;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
+use controller::environment::Environment;
 
 mod domain;
 mod application;
@@ -34,30 +35,26 @@ struct App {
     app_state: AppState
 }
 
-impl App {
-
-    fn router() -> Router {
-        router()
-    }
-}
-
 #[tokio::main]
 async fn main() {
+    let env = Environment::from_env();
+    
     // Set up tracing subscriber for logging
     tracing_subscriber::registry()
         .with(
             EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "debug,tower_http=debug,axum=debug".into()),
+                .unwrap_or_else(|_| env.tracing_level().into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let app = App::router();
+    let app = router(&env);
+    let bind_address = env.bind_address();
 
     print_routes();
 
-    println!("🚀 Server starting on http://localhost:3000");
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    println!("🚀 Server starting on {} ({:?})", bind_address, env);
+    let listener = tokio::net::TcpListener::bind(&bind_address).await.unwrap();
 
     axum::serve(listener, app).await.unwrap();
 }

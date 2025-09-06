@@ -1,92 +1,152 @@
-provider "google" {
-  project = "${var.project}"
-  region = "${var.region}"
-}
-locals {
-  env = "dev"
-}
+# terraform/main.tf - Root orchestration
 
-module "shared" {
-  source = "./shared"
+# ============================================================================
+# IAM Module - Foundation for all security and GitHub integration
+# ============================================================================
+module "iam" {
+  source = "./modules/iam"
 
-  project = "${var.project}"
-  region = "${var.region}"
-  github_repo = "cwarner-solo/pinochle-scorer"
-  repository_name = "pinochle-scorer-registry"
-  
-  depends_on = [time_sleep.api_propagation]
+  project                     = var.project
+  github_repository           = var.github_repository
+  service_name                = var.api_service_name
+  frontend_bucket_name        = "${var.project}-${var.bucket_name}"
+  frontend_bucket_dependency  = module.frontend.bucket_name
 }
 
-module "firewall" {
-  source = "./modules/firewall"
-
-  project = "${var.project}"
-  region = "${var.region}"
-  subnet = "${module.vpc.subnet}"
-}
-
+# ============================================================================
+# Networking Foundation - VPC, Connectors, Security
+# ============================================================================
 module "vpc" {
   source = "./modules/vpc"
 
-  project = "${var.project}"
-  region = "${var.region}"
-  env = "${local.env}"
+  project = var.project
+  region  = var.region
+  env = var.environment
 }
 
 module "vpc_connector" {
   source = "./modules/vpc-connector"
 
-  project = "${var.project}"
-  region = "${var.region}"
-  network = "${module.vpc.network_name}"
-  subnet = "${module.vpc.subnet}"
-  
-  depends_on = [time_sleep.api_propagation]
+  project    = var.project
+  region     = var.region
+  vpc_name   = module.vpc.vpc_name
+  subnet     = module.vpc.subnet
+
+  depends_on = [module.vpc]
 }
 
+module "firewall" {
+  source = "./modules/firewall"
+
+  project  = var.project
+  region   = var.region
+  subnet   = module.vpc.subnet
+  vpc_name = module.vpc.vpc_name
+
+  depends_on = [module.vpc]
+}
+
+# ============================================================================
+# Database - CloudSQL with VPC integration
+# ============================================================================
 module "cloudsql" {
   source = "./modules/cloudsql"
 
-  project = "${var.project}"
-  region = "${var.region}"
-  network = "${module.vpc.network_self_link}"
-  
-  depends_on = [time_sleep.api_propagation]
+  project = var.project
+  region  = var.region
+  network = module.vpc.network_self_link
+
+  depends_on = [module.vpc]
 }
 
-module "cloudrun" {
-  source = "./modules/cloudrun"
+# ============================================================================
+# Application Layer - Frontend and API
+# ============================================================================
 
-  project = "${var.project}"
-  region = "${var.region}"
-  container_image = var.app_version == "hello" ? "us-docker.pkg.dev/cloudrun/container/hello" : "${module.shared.registry_url}/pinochle-scorer:${var.app_version}"
-  service_name = "pinochle-scorer-api"
-  vpc_connector_name = "${module.vpc_connector.connector_name}"
-  database_url = "${module.cloudsql.database_url}"
-  
-  env_vars = {
-    RUST_ENV = "production"
-    CORS_ALLOWED_ORIGINS = "${module.frontend.frontend_url}"
-    FRONTEND_URL = "${module.frontend.frontend_url}"
-    API_BASE_PATH = "/api"
-  }
-  
-  secret_manager_secrets = {
-    DATABASE_PASSWORD = "${module.cloudsql.secret_name}"
-  }
-
-  depends_on = [module.vpc_connector, module.cloudsql]
-}
-
+# Frontend - GCS bucket for React SPA (static hosting)
 module "frontend" {
   source = "./modules/frontend"
 
-  project = "${var.project}"
-  region = "${var.region}"
-  api_service_url = "${module.cloudrun.service_url}"
-  bucket_name = "pinochle-scorer-frontend"
-  enable_cdn = true
-  
-  # Leave domain_name null to use Google's temporary domain
-  domain_name = null
+  project                  = var.project
+  region                   = var.region
+  bucket_name              = var.bucket_name
+  enable_versioning        = var.frontend_enable_versioning
+  frontend_deploy_sa_email = module.iam.frontend_deploy_service_account_email
+}
+
+# CloudRUN API - Rust application with database connectivity
+module "cloudrun" {
+  source = "./modules/cloudrun"
+
+  project                   = var.project
+  region                    = var.region
+  service_name              = var.api_service_name
+  container_image           = var.api_container_image
+  port                      = var.api_port
+  cpu_limit                 = var.api_cpu_limit
+  memory_limit              = var.api_memory_limit
+  min_instances             = var.api_min_instances
+  max_instances             = var.api_max_instances
+  health_path               = var.api_health_path
+  rust_log_level            = var.api_rust_log_level
+  allow_unauthenticated     = var.api_allow_unauthenticated
+
+  # Networking
+  vpc_connector_name        = module.vpc_connector.connector_name
+
+  # Database integration
+  database_url              = module.cloudsql.database_url
+
+  # Environment variables
+  env_vars                  = var.api_env_vars
+  secret_manager_secrets    = var.api_secret_manager_secrets
+
+  # Service Account from IAM module
+  service_account_email     = module.iam.cloudrun_service_account_email
+
+  depends_on = [
+    module.vpc_connector,
+    module.iam
+  ]
+}
+
+# ============================================================================
+# Load Balancer - Traffic orchestration between frontend and API
+# ============================================================================
+module "load_balancer" {
+  source = "./modules/load-balancer"
+
+  project               = var.project
+  region                = var.region
+
+  # Frontend integration
+  frontend_bucket_name  = module.frontend.bucket_name
+
+  # API integration
+  cloudrun_service_name = module.cloudrun.service_name
+
+  # Configuration
+  enable_cdn            = var.enable_cdn
+  domain_name           = var.domain_name
+  ssl_redirect          = var.ssl_redirect
+
+}
+
+# ============================================================================
+# Local values for computed configurations
+# ============================================================================
+locals {
+  # Common tags for all resources
+  common_labels = {
+    project     = var.project
+    environment = var.environment
+    managed_by  = "terraform"
+    application = "pinochle-scorer"
+  }
+
+  # API configuration computed values
+  api_full_name = "${var.project}-${var.api_service_name}"
+
+  # Frontend configuration computed values
+  frontend_full_bucket_name = "${var.project}-${var.bucket_name}"
 }

@@ -35,6 +35,7 @@ use uuid::Uuid;
 mod data_transfer;
 mod error_response;
 mod infrastructure;
+pub(crate) mod environment;
 
 use data_transfer::{StartNewGameRequest, 
     DeclareTrumpRequest, 
@@ -46,16 +47,8 @@ use data_transfer::{StartNewGameRequest,
     StartNewHandRequest,
     GameResponse,
 };
+use crate::controller::environment::Environment;
 use crate::controller::error_response::ToResponse;
-
-fn create_cors_layer() -> CorsLayer {
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
-
-    cors
-}
 
 #[debug_handler]
 // --- Handler stubs ---
@@ -174,7 +167,7 @@ pub async fn record_tricks_handler(State(state): State<AppState>, Path(game_id):
 }
 
 // --- Router setup ---
-pub fn router() -> Router {
+pub fn router(env: &Environment) -> Router {
     let repo: Arc<dyn GameRepository> = Arc::new(InMemoryGameRepository::new());
     let start_game = Arc::new(StartNewGame::new(repo.clone()));
     let start_hand = Arc::new(StartNewHand::new(repo.clone()));
@@ -185,6 +178,8 @@ pub fn router() -> Router {
     let get_completed_hands = Arc::new(GetCompletedHands::new(repo.clone()));
     let get_current_hand = Arc::new(GetCurrentHand::new(repo.clone()));
     let get_running_total = Arc::new(GetRunningTotal::new(repo.clone()));
+
+    tracing::info!("Stating server in {:?} mode", env);
 
     let state = AppState {
         start_game,
@@ -210,7 +205,8 @@ pub fn router() -> Router {
         .with_state(state.clone());
 
 
-    let router = Router::new()
+    let mut router = Router::new()
+        .route("/health", get(health_handler))
         .route("/api/games/", post(start_new_game_handler))
         .route("/api/games/start_hand", post(start_new_hand_handler))
         .nest("/api/games/{game_id}/", inner_router)
@@ -231,8 +227,14 @@ pub fn router() -> Router {
                 tracing::info!("Finished processing request in {:?}", latency)
             })
         )
-        .layer(create_cors_layer());
+        .layer(TraceLayer::new_for_http());
 
+    if let Some(cors_layer) = environment::create_cors_layer(&env) {
+        tracing::info!("Cores enabled for origins: {:?}", env.cors_origins());
+        router = router.layer(cors_layer);
+    } else {
+        tracing::info!("CORS disabled")
+    }
     router
 }
 
@@ -285,4 +287,8 @@ impl IntoResponse for AppError {
 
         (status, body).into_response()
     }
+}
+
+pub async fn health_handler() -> StatusCode {
+    StatusCode::OK
 }

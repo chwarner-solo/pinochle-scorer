@@ -1,20 +1,4 @@
-resource "google_service_account" "cloudrun_sa" {
-  project      = var.project
-  account_id   = "${var.service_name}-sa"
-  display_name = "Service Account for ${var.service_name}"
-}
-
-resource "google_project_iam_member" "cloudrun_sa_artifact_registry" {
-  project = var.project
-  role    = "roles/artifactregistry.reader"
-  member  = "serviceAccount:${google_service_account.cloudrun_sa.email}"
-}
-
-resource "google_project_iam_member" "cloudrun_sa_secret_accessor" {
-  project = var.project
-  role    = "roles/secretmanager.secretAccessor"
-  member  = "serviceAccount:${google_service_account.cloudrun_sa.email}"
-}
+# modules/cloudrun/main.tf
 
 resource "google_cloud_run_v2_service" "api" {
   project  = var.project
@@ -23,9 +7,16 @@ resource "google_cloud_run_v2_service" "api" {
   ingress  = "INGRESS_TRAFFIC_ALL"
   deletion_protection = false
 
+  # Ignore changes to the container image - managed by CI/CD
+  lifecycle {
+    ignore_changes = [
+      template[0].containers[0].image
+    ]
+  }
+
   template {
-    service_account = google_service_account.cloudrun_sa.email
-    
+    service_account = var.service_account_email
+
     scaling {
       min_instance_count = var.min_instances
       max_instance_count = var.max_instances
@@ -40,8 +31,9 @@ resource "google_cloud_run_v2_service" "api" {
     }
 
     containers {
-      image = var.container_image
-      
+      # Start with placeholder image - GitHub Actions will replace this
+      image = var.container_image != "" ? var.container_image : "gcr.io/cloudrun/hello"
+
       ports {
         container_port = var.port
       }
@@ -51,6 +43,29 @@ resource "google_cloud_run_v2_service" "api" {
           cpu    = var.cpu_limit
           memory = var.memory_limit
         }
+      }
+
+      # Health check probes for your Rust application
+      startup_probe {
+        http_get {
+          path = var.health_path
+          port = var.port
+        }
+        initial_delay_seconds = 10
+        timeout_seconds = 5
+        period_seconds = 10
+        failure_threshold = 5
+      }
+
+      liveness_probe {
+        http_get {
+          path = var.health_path
+          port = var.port
+        }
+        initial_delay_seconds = 30
+        timeout_seconds = 5
+        period_seconds = 30
+        failure_threshold = 3
       }
 
       dynamic "env" {
@@ -63,9 +78,10 @@ resource "google_cloud_run_v2_service" "api" {
 
       env {
         name  = "RUST_LOG"
-        value = "info"
+        value = var.rust_log_level
       }
 
+      # Database URL (if provided)
       dynamic "env" {
         for_each = var.database_url != "" ? [1] : []
         content {
@@ -74,6 +90,7 @@ resource "google_cloud_run_v2_service" "api" {
         }
       }
 
+      # Secret Manager secrets
       dynamic "env" {
         for_each = var.secret_manager_secrets
         content {
@@ -89,29 +106,4 @@ resource "google_cloud_run_v2_service" "api" {
     }
   }
 
-  depends_on = [
-    google_project_iam_member.cloudrun_sa_artifact_registry,
-    google_project_iam_member.cloudrun_sa_secret_accessor
-  ]
-}
-
-resource "google_cloud_run_service_iam_policy" "noauth" {
-  count = var.allow_unauthenticated ? 1 : 0
-
-  location = google_cloud_run_v2_service.api.location
-  project  = google_cloud_run_v2_service.api.project
-  service  = google_cloud_run_v2_service.api.name
-
-  policy_data = data.google_iam_policy.noauth[0].policy_data
-}
-
-data "google_iam_policy" "noauth" {
-  count = var.allow_unauthenticated ? 1 : 0
-
-  binding {
-    role = "roles/run.invoker"
-    members = [
-      "allUsers",
-    ]
-  }
 }

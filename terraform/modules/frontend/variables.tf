@@ -20,13 +20,19 @@ variable "domain_name" {
   default     = null
 }
 
-variable "api_service_url" {
-  description = "CloudRun API service URL for load balancer backend"
-  type        = string
-}
-
 variable "enable_cdn" {
   description = "Enable Cloud CDN"
   type        = bool
   default     = true
+}
+
+variable "enable_versioning" {
+  description = "Enable object versioning for the frontend bucket"
+  type        = bool
+  default     = false
+}
+
+variable "frontend_deploy_sa_email" {
+  description = "Email of the frontend deployment service account"
+  type        = string
 }

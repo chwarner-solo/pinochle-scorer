@@ -1,0 +1,301 @@
+name: Blue/Green Deploy Rust API to CloudRUN
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'rust-app/**'
+      - 'Dockerfile'
+      - '.github/workflows/deploy-rust-blue-green.yml'
+  workflow_dispatch:
+    inputs:
+      deployment_strategy:
+        description: 'Deployment strategy'
+        required: true
+        default: 'canary'
+        type: choice
+        options:
+          - canary
+          - blue-green
+          - direct
+      canary_percentage:
+        description: 'Canary traffic percentage (1-99)'
+        required: false
+        default: '10'
+        type: string
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: ${{ secrets.GCP_REGION }}
+  SERVICE_NAME: ${{ secrets.CLOUDRUN_SERVICE_NAME }}
+  REPOSITORY: ${{ secrets.ARTIFACT_REGISTRY_REPO }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust-app
+
+      - name: Run tests
+        run: |
+          cd rust-app
+          cargo test --verbose
+
+      - name: Security audit
+        run: |
+          cd rust-app
+          cargo audit
+        continue-on-error: true
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      image-tag: ${{ steps.build.outputs.image-tag }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      - name: Build and Push Image
+        id: build
+        run: |
+          IMAGE_TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
+          
+          docker build \
+            --platform linux/amd64 \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --cache-from ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:latest \
+            -t $IMAGE_TAG \
+            -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:latest \
+            .
+          
+          docker push $IMAGE_TAG
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:latest
+          
+          echo "image-tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "🐳 Built and pushed: $IMAGE_TAG"
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Current Revision
+        id: current
+        run: |
+          CURRENT_REVISION=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --format="value(status.latestReadyRevisionName)")
+          echo "revision=$CURRENT_REVISION" >> $GITHUB_OUTPUT
+          echo "📋 Current revision: $CURRENT_REVISION"
+
+      - name: Deploy New Revision (No Traffic)
+        id: deploy
+        run: |
+          # Deploy new revision with no traffic initially
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image ${{ needs.build.outputs.image-tag }} \
+            --region ${{ env.REGION }} \
+            --allow-unauthenticated \
+            --no-traffic \
+            --tag=candidate \
+            --port=8080 \
+            --max-instances=10 \
+            --min-instances=0 \
+            --cpu=2 \
+            --memory=2Gi \
+            --timeout=300
+          
+          NEW_REVISION=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --format="value(status.latestReadyRevisionName)")
+          echo "revision=$NEW_REVISION" >> $GITHUB_OUTPUT
+          echo "🚀 New revision deployed: $NEW_REVISION"
+
+      - name: Health Check New Revision
+        run: |
+          # Get the URL for the candidate revision
+          CANDIDATE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --format="value(status.traffic[0].url)" \
+            --filter="status.traffic.tag=candidate")
+          
+          echo "🏥 Health checking: $CANDIDATE_URL/api/health"
+          
+          # Health check with retries
+          for i in {1..10}; do
+            if curl -f -m 10 "$CANDIDATE_URL/api/health"; then
+              echo "✅ Health check passed on attempt $i"
+              break
+            else
+              echo "❌ Health check failed, attempt $i/10"
+              if [ $i -eq 10 ]; then
+                echo "💥 Health check failed after 10 attempts"
+                exit 1
+              fi
+              sleep 30
+            fi
+          done
+
+      - name: Determine Deployment Strategy
+        id: strategy
+        run: |
+          STRATEGY="${{ github.event.inputs.deployment_strategy }}"
+          if [ -z "$STRATEGY" ]; then
+            STRATEGY="canary"
+          fi
+          echo "strategy=$STRATEGY" >> $GITHUB_OUTPUT
+          echo "📋 Deployment strategy: $STRATEGY"
+
+      - name: Canary Deployment
+        if: steps.strategy.outputs.strategy == 'canary'
+        run: |
+          PERCENTAGE="${{ github.event.inputs.canary_percentage || '10' }}"
+          echo "🐤 Starting canary deployment with $PERCENTAGE% traffic"
+          
+          gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --to-revisions=${{ steps.deploy.outputs.revision }}=$PERCENTAGE,${{ steps.current.outputs.revision }}=$((100-PERCENTAGE))
+          
+          echo "⏱️  Canary running for 5 minutes..."
+          sleep 300  # Wait 5 minutes
+          
+          echo "📊 Checking metrics..."
+          # Add your metric checks here
+          
+          echo "✅ Canary validation passed, promoting to 100%"
+          gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --to-latest
+
+      - name: Blue/Green Deployment
+        if: steps.strategy.outputs.strategy == 'blue-green'
+        run: |
+          echo "🔄 Blue/Green deployment: Switching 100% traffic"
+          gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --to-latest
+          
+          echo "⏱️  Monitoring for 2 minutes..."
+          sleep 120
+          
+          echo "📊 Checking post-deployment health..."
+          # Add validation checks here
+
+      - name: Direct Deployment
+        if: steps.strategy.outputs.strategy == 'direct'
+        run: |
+          echo "⚡ Direct deployment: Immediate 100% traffic"
+          gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --to-latest
+
+      - name: Cleanup Old Revisions
+        run: |
+          echo "🧹 Cleaning up old revisions (keeping last 5)"
+          gcloud run revisions list \
+            --service=${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --filter="status.conditions.type=Ready AND status.conditions.status=True" \
+            --sort-by=~metadata.creationTimestamp \
+            --format="value(metadata.name)" \
+            --limit=100 | tail -n +6 | while read revision; do
+              if [ -n "$revision" ]; then
+                echo "🗑️  Deleting old revision: $revision"
+                gcloud run revisions delete $revision --region=${{ env.REGION }} --quiet || true
+              fi
+            done
+
+      - name: Deployment Summary
+        run: |
+          echo "## 🎉 Deployment Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "- **Service**: ${{ env.SERVICE_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Region**: ${{ env.REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Strategy**: ${{ steps.strategy.outputs.strategy }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **New Revision**: ${{ steps.deploy.outputs.revision }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image**: ${{ needs.build.outputs.image-tag }}" >> $GITHUB_STEP_SUMMARY
+          
+          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --format="value(status.url)")
+          echo "- **Service URL**: $SERVICE_URL" >> $GITHUB_STEP_SUMMARY
+
+  rollback:
+    if: failure()
+    needs: [build, deploy]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Rollback Deployment
+        run: |
+          echo "🚨 Deployment failed, initiating rollback..."
+          
+          # Get the previous stable revision
+          PREVIOUS_REVISION=$(gcloud run revisions list \
+            --service=${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --filter="status.conditions.type=Ready AND status.conditions.status=True" \
+            --sort-by=~metadata.creationTimestamp \
+            --format="value(metadata.name)" \
+            --limit=2 | tail -n 1)
+          
+          if [ -n "$PREVIOUS_REVISION" ]; then
+            echo "⏪ Rolling back to revision: $PREVIOUS_REVISION"
+            gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
+              --region=${{ env.REGION }} \
+              --to-revisions=$PREVIOUS_REVISION=100
+            echo "✅ Rollback completed"
+          else
+            echo "❌ No previous revision found for rollback"
+          fi

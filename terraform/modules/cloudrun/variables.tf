@@ -1,41 +1,42 @@
+# modules/cloudrun/variables.tf
+
 variable "project" {
-  description = "GCP Project ID"
+  description = "GCP project ID"
   type        = string
 }
 
 variable "region" {
-  description = "GCP Region"
+  description = "GCP region"
   type        = string
 }
 
 variable "service_name" {
-  description = "CloudRun service name"
+  description = "Name of the CloudRUN service"
   type        = string
-  default     = "pinochle-scorer-api"
 }
 
 variable "container_image" {
-  description = "Container image URL from Artifact Registry"
+  description = "Container image to deploy (empty = use placeholder)"
   type        = string
-  default     = "us-docker.pkg.dev/cloudrun/container/hello"
+  default     = ""
 }
 
 variable "port" {
   description = "Container port"
   type        = number
-  default     = 3000
+  default     = 8080
 }
 
 variable "cpu_limit" {
-  description = "CPU limit for the container"
+  description = "CPU limit"
   type        = string
-  default     = "1000m"
+  default     = "2"
 }
 
 variable "memory_limit" {
-  description = "Memory limit for the container"
+  description = "Memory limit"
   type        = string
-  default     = "512Mi"
+  default     = "2Gi"
 }
 
 variable "min_instances" {
@@ -50,10 +51,16 @@ variable "max_instances" {
   default     = 10
 }
 
-variable "env_vars" {
-  description = "Environment variables for the container"
-  type        = map(string)
-  default     = {}
+variable "health_path" {
+  description = "Health check endpoint path"
+  type        = string
+  default     = "/api/health"
+}
+
+variable "rust_log_level" {
+  description = "Rust log level"
+  type        = string
+  default     = "info"
 }
 
 variable "allow_unauthenticated" {
@@ -62,20 +69,34 @@ variable "allow_unauthenticated" {
   default     = true
 }
 
+# VPC Integration
 variable "vpc_connector_name" {
-  description = "VPC connector name for private network access"
+  description = "VPC connector name for private networking"
   type        = string
   default     = null
+}
+
+# Environment variables
+variable "env_vars" {
+  description = "Environment variables as key-value pairs"
+  type        = map(string)
+  default     = {}
 }
 
 variable "database_url" {
   description = "Database connection URL"
   type        = string
   default     = ""
+  sensitive   = true
 }
 
 variable "secret_manager_secrets" {
-  description = "Secret Manager secrets to mount as environment variables"
+  description = "Map of environment variable names to Secret Manager secret names"
   type        = map(string)
   default     = {}
+}
+
+variable "service_account_email" {
+  description = "Cloud  Run Service Account"
+  type = string
 }
