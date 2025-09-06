@@ -118,6 +118,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Debug - Check build outputs
+        run: |
+          echo "Build job outputs:"
+          echo "image-tag: ${{ needs.build.outputs.image-tag }}"
+          echo "Full needs context: ${{ toJson(needs) }}"
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
