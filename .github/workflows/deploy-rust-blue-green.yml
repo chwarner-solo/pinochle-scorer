@@ -95,7 +95,7 @@ jobs:
             --platform linux/amd64 \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             --cache-from ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:latest \
-            -f docker/Dockerfile \
+            -f docker/api/Dockerfile \
             -t $IMAGE_TAG \
             -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:latest \
             .
