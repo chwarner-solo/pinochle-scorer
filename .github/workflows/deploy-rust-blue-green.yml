@@ -69,7 +69,7 @@ jobs:
       contents: read
       id-token: write
     outputs:
-      image-tag: ${{ steps.build.outputs.image-tag }}
+      image-tag: ${{ steps.build-and-push.outputs.image-tag }}
 
     steps:
       - uses: actions/checkout@v4
@@ -87,7 +87,7 @@ jobs:
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
       - name: Build and Push Image
-        id: build
+        id: build-and-push
         run: |
           IMAGE_TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
           
