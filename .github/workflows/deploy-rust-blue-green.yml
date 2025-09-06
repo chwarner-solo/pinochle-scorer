@@ -48,12 +48,10 @@ jobs:
 
       - name: Run tests
         run: |
-          cd rust-app
           cargo test --verbose
 
       - name: Security audit
         run: |
-          cd rust-app
           cargo audit
         continue-on-error: true
 
