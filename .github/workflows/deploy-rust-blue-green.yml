@@ -55,9 +55,11 @@ jobs:
         run: |
           cargo test --verbose
 
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+        
       - name: Security audit
-        run: |
-          cargo audit
+        run: cargo audit
         continue-on-error: true
 
   build:
