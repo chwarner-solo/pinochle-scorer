@@ -1,4 +1,4 @@
-name: Blue/Green Deploy Rust API to CloudRUN
+name: Deploy Rust API to CloudRun
 
 on:
   push:
