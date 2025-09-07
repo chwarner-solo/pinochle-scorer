@@ -206,7 +206,7 @@ pub fn router(env: &Environment) -> Router {
 
 
     let mut router = Router::new()
-        .route("/health", get(health_handler))
+        .route("/api/health", get(health_handler))
         .route("/api/games/", post(start_new_game_handler))
         .route("/api/games/start_hand", post(start_new_hand_handler))
         .nest("/api/games/{game_id}/", inner_router)
