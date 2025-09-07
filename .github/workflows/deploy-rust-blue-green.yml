@@ -269,11 +269,27 @@ jobs:
         if: steps.strategy.outputs.strategy == 'canary'
         run: |
           PERCENTAGE="${{ github.event.inputs.canary_percentage || '10' }}"
-          echo "🐤 Starting canary deployment with $PERCENTAGE% traffic"
+          NEW_REVISION="${{ steps.deploy.outputs.revision }}"
+          CURRENT_REVISION="${{ steps.current.outputs.revision }}"
           
-          gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
-            --region=${{ env.REGION }} \
-            --to-revisions=${{ steps.deploy.outputs.revision }}=$PERCENTAGE,${{ steps.current.outputs.revision }}=$((100-PERCENTAGE))
+          echo "🐤 Starting canary deployment with $PERCENTAGE% traffic"
+          echo "  New revision: $NEW_REVISION"
+          echo "  Current revision: $CURRENT_REVISION"
+          
+          if [ "$CURRENT_REVISION" != "none" ]; then
+            # Calculate remaining percentage for current revision
+            REMAINING_PERCENTAGE=$((100-PERCENTAGE))
+            echo "🔄 Splitting traffic: $NEW_REVISION=$PERCENTAGE%, $CURRENT_REVISION=$REMAINING_PERCENTAGE%"
+          
+            gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
+              --region=${{ env.REGION }} \
+              --to-revisions=$NEW_REVISION=$PERCENTAGE,$CURRENT_REVISION=$REMAINING_PERCENTAGE
+          else
+            echo "🔄 No current revision, deploying $NEW_REVISION with 100% traffic"
+            gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
+              --region=${{ env.REGION }} \
+              --to-revisions=$NEW_REVISION=100
+          fi
           
           echo "⏱️  Canary running for 5 minutes..."
           sleep 300  # Wait 5 minutes
