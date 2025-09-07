@@ -68,9 +68,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    outputs:
-      image_tag: ${{ steps.build-and-push.outputs.image_tag }}
-      image_repository: ${{ steps.build-and-push.outputs.image_repository }}
+    # No outputs needed!
 
     steps:
       - uses: actions/checkout@v4
@@ -87,33 +85,13 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
-      - name: Build Image Metadata
-        id: image-meta
-        run: |
-          # Construct image paths more reliably
-          REPO_PATH="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}"
-          IMAGE_NAME="${{ env.SERVICE_NAME }}"
-          IMAGE_TAG="${REPO_PATH}/${IMAGE_NAME}:${{ github.sha }}"
-          LATEST_TAG="${REPO_PATH}/${IMAGE_NAME}:latest"
-          
-          echo "repo_path=${REPO_PATH}" >> $GITHUB_OUTPUT
-          echo "image_name=${IMAGE_NAME}" >> $GITHUB_OUTPUT
-          echo "image_tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
-          echo "latest_tag=${LATEST_TAG}" >> $GITHUB_OUTPUT
-          
-          echo "📝 Image metadata:"
-          echo "  Repository Path: ${REPO_PATH}"
-          echo "  Image Name: ${IMAGE_NAME}"
-          echo "  Image Tag: ${IMAGE_TAG}"
-          echo "  Latest Tag: ${LATEST_TAG}"
-
       - name: Build and Push Image
-        id: build-and-push
         run: |
-          IMAGE_TAG="${{ steps.image-meta.outputs.image_tag }}"
-          LATEST_TAG="${{ steps.image-meta.outputs.latest_tag }}"
+          # Construct image tag directly from known values
+          IMAGE_TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
+          LATEST_TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:latest"
           
-          echo "🐳 Building image: ${IMAGE_TAG}"
+          echo "🐳 Building and pushing: $IMAGE_TAG"
           
           docker build \
             --platform linux/amd64 \
@@ -124,18 +102,10 @@ jobs:
             -t $LATEST_TAG \
             .
           
-          echo "📤 Pushing images..."
           docker push $IMAGE_TAG
           docker push $LATEST_TAG
           
-          # Set outputs for downstream jobs
-          echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
-          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
-          echo "image_repository=${{ steps.image-meta.outputs.repo_path }}" >> $GITHUB_OUTPUT
-          
-          echo "✅ Build and push completed:"
-          echo "  Image Tag: $IMAGE_TAG"
-          echo "  Latest Tag: $LATEST_TAG"
+          echo "✅ Built and pushed: $IMAGE_TAG"
 
   deploy:
     needs: build
@@ -147,24 +117,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Debug - Validate Build Outputs
-        run: |
-          echo "🔍 Debugging build outputs:"
-          echo "  image_tag: '${{ needs.build.outputs.image_tag }}'"
-          echo "  image_repository: '${{ needs.build.outputs.image_repository }}'"
-          echo ""
-          echo "📋 Full needs context:"
-          echo '${{ toJson(needs.build.outputs) }}'
-          echo ""
-
-          # Validate the image tag is not empty
-          if [ -z "${{ needs.build.outputs.image_tag }}" ]; then
-            echo "❌ ERROR: image_tag is empty!"
-            exit 1
-          else
-            echo "✅ image_tag is set: ${{ needs.build.outputs.image_tag }}"
-          fi
-
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
@@ -173,6 +125,24 @@ jobs:
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
+
+      - name: Construct Image Tag
+        id: image
+        run: |
+          # Construct the same image tag that was built
+          IMAGE_TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
+          
+          echo "🏷️ Deploying image: $IMAGE_TAG"
+          echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          
+          # Validate the image exists in the registry
+          echo "🔍 Verifying image exists in registry..."
+          if gcloud container images describe "$IMAGE_TAG" --quiet; then
+            echo "✅ Image confirmed in registry"
+          else
+            echo "❌ Image not found in registry!"
+            exit 1
+          fi
 
       - name: Get Current Revision
         id: current
@@ -185,20 +155,10 @@ jobs:
 
       - name: Deploy New Revision (No Traffic)
         id: deploy
-        env:
-          IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
         run: |
-          echo "🚀 Deploying image: $IMAGE_TAG"
-
-          # Validate image tag before deployment
-          if [ -z "$IMAGE_TAG" ]; then
-            echo "❌ ERROR: IMAGE_TAG environment variable is empty!"
-            echo "Debug info:"
-            echo "  needs.build.outputs.image_tag: '${{ needs.build.outputs.image_tag }}'"
-            exit 1
-          fi
-
-          # Deploy new revision with no traffic initially
+          IMAGE_TAG="${{ steps.image.outputs.image_tag }}"
+          echo "🚀 Deploying: $IMAGE_TAG"
+          
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --image "$IMAGE_TAG" \
             --region ${{ env.REGION }} \
@@ -212,31 +172,29 @@ jobs:
             --memory=2Gi \
             --timeout=300 \
             --quiet
-
+          
           NEW_REVISION=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
             --region=${{ env.REGION }} \
             --format="value(status.latestReadyRevisionName)")
           echo "revision=$NEW_REVISION" >> $GITHUB_OUTPUT
           echo "✅ New revision deployed: $NEW_REVISION"
 
+      # Rest of your deployment steps...
       - name: Health Check New Revision
         run: |
-          # Get the URL for the candidate revision
           CANDIDATE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
             --region=${{ env.REGION }} \
             --format="value(status.traffic[].url)" \
             --filter="status.traffic.tag=candidate")
-
+          
           if [ -z "$CANDIDATE_URL" ]; then
-            echo "❌ Could not get candidate URL, falling back to service URL"
             CANDIDATE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
               --region=${{ env.REGION }} \
               --format="value(status.url)")
           fi
-
+          
           echo "🏥 Health checking: $CANDIDATE_URL/api/health"
-
-          # Health check with retries
+          
           for i in {1..10}; do
             if curl -f -m 10 "$CANDIDATE_URL/api/health"; then
               echo "✅ Health check passed on attempt $i"
