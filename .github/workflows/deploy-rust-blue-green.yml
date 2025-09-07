@@ -149,6 +149,8 @@ jobs:
       - name: Deploy New Revision (No Traffic)
         id: deploy
         run: |
+          echo ${{ needs.build.outputs.image_tag }}
+          echo ${{ needs.build.outputs.image-tag }}
           # Deploy new revision with no traffic initially
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --image ${{ needs.build.outputs.image_tag }} \
