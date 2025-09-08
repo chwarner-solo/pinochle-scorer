@@ -153,7 +153,7 @@ function submitHandPhase(
         try {
             if (!game.game_state) return;
             if (game.game_state !== 'InProgress') return;
-            const newGame = await api.InProgress[handState](game.game_id, formData as any);
+            const newGame = await api.InProgress[handState](game.game_id, formData as never);
             setGame(newGame || null);
             setState(newGame?.game_state || 'NoGame');
             setTrump(newGame?.trump || '--');
@@ -239,7 +239,7 @@ export const useGame = (api: ApiCallMap) : UseGameReturn => {
         console.log('[handleSubmitBid] called with:', { selectedSeat, bid, player });
         setSubmittingBid(true);
         try {
-            const result = await onHandSubmit({ player: player as any, bid });
+            const result = await onHandSubmit({ player, bid } as never);
             console.log('[handleSubmitBid] onHandSubmit result:', result);
         } catch (e) {
             console.error('[handleSubmitBid] error:', e);
@@ -252,7 +252,7 @@ export const useGame = (api: ApiCallMap) : UseGameReturn => {
         setSelectedTrump(suit);
         setSubmittingTrump(true);
         try {
-            const result = await onHandSubmit({ trump: suit as any });
+            const result = await onHandSubmit({ trump: suit } as never);
             console.log('[handleTrumpClick] onHandSubmit result:', result);
         } catch (e) {
             console.error('[handleTrumpClick] error:', e);
