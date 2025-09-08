@@ -2,14 +2,13 @@ import {useGame} from "./useGame.ts";
 import {act, renderHook} from "@testing-library/react";
 import type {ApiCallMap} from "../services/api.ts";
 import {vi, describe, it, expect, beforeEach} from "vitest";
-import type {HandState} from "../types/Game.ts";
 
 let  mockApi: ApiCallMap;
 
 beforeEach(() => {
     mockApi = {
-        Completed: async (_gameId: string) => {},
-        InProgress: async (_gameId: string, _handState: HandState, _formData: any) => {},
+        Completed: async () => {},
+        InProgress: async () => {},
         NoGame: vi.fn().mockResolvedValue({game_id: "1", game_state: "WaitingToStart"}),
         WaitingToStart: vi.fn().mockResolvedValue({game_id: "1", game_state: "WaitingToStart"})
     }

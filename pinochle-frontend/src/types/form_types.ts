@@ -4,10 +4,10 @@ export type BidFormData = { bid: number, player: Player };
 export type TrumpFormData = { trump: Suit };
 export type MeldFormData = { us_meld: number, them_meld: number};
 export type TricksFormData = { us_tricks: number, them_tricks: number};
-export type CompletedFormData = {};
+export type CompletedFormData = Record<string, never>;
 
 export type FormSchema = {
-    "NoHand": {},
+    "NoHand": Record<string, never>,
     "WaitingForBid": BidFormData,
     "WaitingForTrump": TrumpFormData,
     "WaitingForMeld": MeldFormData,

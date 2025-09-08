@@ -1,4 +1,4 @@
-import type {BidFormData, MeldFormData, TrumpFormData, FormData, CompletedFormData} from "../types/form_types";
+import type {BidFormData, TrumpFormData, FormData} from "../types/form_types";
 import type { HandState } from "../types/Game";
 
 export type ValidationErrors = { [field: string]: string | undefined}
@@ -7,7 +7,7 @@ export const validateBid= (form: BidFormData): ValidationErrors => {
     const errors: ValidationErrors = {};
 
     if (!form.player) errors.player = "Select a player for the bid.";
-    let bid = getBidError(form.bid);
+    const bid = getBidError(form.bid);
     if (bid) errors.bid = bid;
 
     return errors;
@@ -19,12 +19,12 @@ export const validateTrump = (form: TrumpFormData): ValidationErrors => {
     return errors;
 }
 
-export const validateMeld = (form: MeldFormData): ValidationErrors => {
+export const validateMeld = (): ValidationErrors => {
     // No errors or user notification for meld < 20; normalization happens silently
     return {};
 }
 
-export const validateTricks = (form: any): ValidationErrors => {
+export const validateTricks = (form: { us_tricks?: number; them_tricks?: number }): ValidationErrors => {
     const errors: ValidationErrors = {};
     const us = Number(form.us_tricks);
     const them = Number(form.them_tricks);
@@ -70,11 +70,12 @@ export type ValidatorMap = {
 };
 
 export const validationMap: ValidatorMap =  {
+    NoHand: () => ({}),
     "WaitingForBid": validateBid,
     WaitingForTrump: validateTrump,
     WaitingForMeld: validateMeld,
     WaitingForTricks: validateTricks,
-    Completed: (_form: CompletedFormData) => ({}),
+    Completed: () => ({}),
     NoMarriage: validateMeld
 }
 

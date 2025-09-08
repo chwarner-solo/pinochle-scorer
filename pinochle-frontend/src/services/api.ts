@@ -93,7 +93,7 @@ export type HandApi = {
 };
 
 export const handApi: HandApi = {
-    async NoHand(gameId: string, _formData: {}) {
+    async NoHand(gameId: string) {
         return gameApi.startHand(gameId);
     },
     WaitingForBid: gameApi.recordBid,
@@ -101,7 +101,7 @@ export const handApi: HandApi = {
     WaitingForMeld: gameApi.recordMeld,
     WaitingForTricks: gameApi.recordTricks,
     NoMarriage: gameApi.recordMeld,
-    Completed: async(_gameId: string, _formData:{}) => { return null; }
+    Completed: async() => { return null; }
 }
 
 export const realGameApi: ApiCallMap = {

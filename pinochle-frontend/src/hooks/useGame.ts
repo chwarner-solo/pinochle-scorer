@@ -1,9 +1,8 @@
 import type {Game, GameState} from "../types/Game.ts";
-import {useState, useEffect} from "react";
+import {useState, useEffect, useCallback} from "react";
 import type {ApiCallMap} from "../services/api.ts";
 import type {AnyFormData} from "../types/form_types.ts";
 import {validationMap} from "../validation/handValidation";
-import { realGameApi } from "../services/api";
 
 export interface UseGameReturn {
     game: Game | null;
@@ -18,7 +17,7 @@ export interface UseGameReturn {
     isNewHandAvailable: boolean;
     loading: boolean;
     error: string | null;
-    onGameSubmit: (data?: any) => Promise<void>;
+    onGameSubmit: (data?: unknown) => Promise<void>;
     onHandSubmit: (data?: AnyFormData) => Promise<void>;
     onResetGame: () => void;
     completedHands: Game[];
@@ -48,7 +47,7 @@ export interface UseGameReturn {
 }
 
 type GameActionMap = {
-    [K in GameState]: (data?: any) => Promise<void>;
+    [K in GameState]: (data?: unknown) => Promise<void>;
 }
 
 function createNewGame (
@@ -61,8 +60,8 @@ function createNewGame (
     setRequiredTricks: (value: number) => void,
     setUsScore: (value: number) => void,
     setThemScore: (value: number) => void
-): (data?: any) => Promise<void> {
-    return async (_data?: any) => {
+): (data?: unknown) => Promise<void> {
+    return async () => {
         console.log("Creating new game");
         console.log("Current state:", state);
         if (state !== 'NoGame') { return;}
@@ -80,9 +79,10 @@ function createNewGame (
             setRequiredTricks(newGame?.required_tricks || 0);
             setUsScore(newGame?.us_score ?? 0);
             setThemScore(newGame?.them_score ?? 0);
-        } catch (e: any) {
+        } catch (e: unknown) {
             console.log("Error creating game:", e);
-            setError(e.message || "Failed to create game");
+            const errorMessage = e instanceof Error ? e.message : "Failed to create game";
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -98,8 +98,8 @@ function createNewHand(
     setGame: (value: Game | null) => void,
     setState: (value: GameState) => void,
     setTrump: (value?: string) => void
-): (data?: any) => Promise<void> {
-    return async (_data?: any) => {
+): (data?: unknown) => Promise<void> {
+    return async () => {
         // Allow new hand if game is WaitingToStart, or if game is InProgress and hand_state is Completed or NoHand
         const canStartHand =
             game_state === 'WaitingToStart' ||
@@ -116,8 +116,9 @@ function createNewHand(
             setGame(newGame || null);
             setState(newGame?.game_state || 'NoGame');
             setTrump(newGame?.trump || '--');
-        } catch (e: any) {
-            setError(e.message || "Failed to create hand");
+        } catch (e: unknown) {
+            const errorMessage = e instanceof Error ? e.message : "Failed to create hand";
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -140,7 +141,7 @@ function submitHandPhase(
     return async (formData: AnyFormData) => {
         if (!game || !game.game_id) return;
         const handState = game.hand_state;
-        const errors = validationMap[handState](formData as any);
+        const errors = validationMap[handState](formData as never);
         if (Object.keys(errors).length > 0) {
             console.log("Validation errors:", errors);
             setError("Validation error");
@@ -155,8 +156,9 @@ function submitHandPhase(
             setRequiredTricks(newGame?.required_tricks || 0);
             setUsScore(newGame?.us_score ?? 0);
             setThemScore(newGame?.them_score ?? 0);
-        } catch (e: any) {
-            setError(e.message || "Failed to submit form");
+        } catch (e: unknown) {
+            const errorMessage = e instanceof Error ? e.message : "Failed to submit form";
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -193,7 +195,7 @@ export const useGame = (api: ApiCallMap) : UseGameReturn => {
     const seatToPlayerMap = { N: "North", E: "East", S: "South", W: "West" };
 
     // Helper to fetch completed hands
-    const fetchCompletedHands = async (gameId: string) => {
+    const fetchCompletedHands = useCallback(async (gameId: string) => {
         try {
             console.log("Fetching completed hands for game ID:", gameId);
             const resp = await api.getCompletedHands(gameId);
@@ -202,14 +204,14 @@ export const useGame = (api: ApiCallMap) : UseGameReturn => {
             console.log("Error fetching completed hands:", e)
             setCompletedHands([]);
         }
-    };
+    }, [api]);
 
     // Update completed hands only when game is InProgress and hand_state is WaitingForBid
     useEffect(() => {
         if (game?.game_id && game.game_state === 'InProgress' && game.hand_state === 'WaitingForBid') {
             fetchCompletedHands(game.game_id);
         }
-    }, [game?.game_id, game?.game_state, game?.hand_state]);
+    }, [game?.game_id, game?.game_state, game?.hand_state, fetchCompletedHands]);
 
     const gameActionMap: GameActionMap = {
         NoGame: createNewGame(state, api, setLoading, setError, setGame, setState, setRequiredTricks, setUsScore, setThemScore),
@@ -219,7 +221,7 @@ export const useGame = (api: ApiCallMap) : UseGameReturn => {
     };
 
     // Compose onGameSubmit for game phases
-    let onGameSubmit: (data?: any) => Promise<void> = gameActionMap[state];
+    const onGameSubmit: (data?: unknown) => Promise<void> = gameActionMap[state];
     // Compose onHandSubmit for hand phases
     let onHandSubmit: (data?: AnyFormData) => Promise<void> = async () => {};
     if (state === 'InProgress' && game?.hand_state !== 'NoHand' && game?.hand_state !== 'Completed' && game?.hand_state != null) {

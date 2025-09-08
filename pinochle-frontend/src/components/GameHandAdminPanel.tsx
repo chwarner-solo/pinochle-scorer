@@ -5,7 +5,7 @@ interface GameHandAdminPanelProps {
   game: Game | null;
   onResetGame: () => void;
   onResetHand: () => void;
-  completedHands?: Array<any>;
+  completedHands?: Array<Game>;
 }
 
 const panelStyle: React.CSSProperties = {

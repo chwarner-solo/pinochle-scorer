@@ -11,7 +11,6 @@ interface UserInteractionZoneProps {
   loading: boolean;
   onStartGame: () => void;
   onStartHand: () => void;
-  onResetHand: () => void;
   selectedSeat: string;
   setSelectedSeat: (seat: string) => void;
   bid: number;
@@ -43,7 +42,6 @@ const UserInteractionZone: React.FC<UserInteractionZoneProps> = (props) => {
     loading,
     onStartGame,
     onStartHand,
-    onResetHand,
     selectedSeat,
     setSelectedSeat,
     bid,

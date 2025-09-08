@@ -2,7 +2,7 @@ import React from 'react';
 
 export type TableSeatButtonProps = {
   seat: string;
-  pos: any;
+  pos: { top?: string; bottom?: string; left?: string; right?: string };
   isDealer: boolean;
   isBidder: boolean;
   isSelected: boolean;

@@ -1,21 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import { useGame } from "../hooks/useGame";
 import { realGameApi } from "../services/api";
 import GameHandAdminPanel from '../components/GameHandAdminPanel';
 import HandsTableCard from '../components/HandsTableCard';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { TableSeatButton } from '../components/TableSeatButton';
-import BidEntry from '../components/BidEntryBox';
-import { MeldEntryBox } from '../components/MeldEntryBox';
-import { TricksEntryBox } from '../components/TricksEntryBox';
 import type { Player, Suit } from '../types/Game';
-import BidEntryBox from "../components/BidEntryBox";
 import UserInteractionZone from "../components/user_interaction_zone";
 
 // --- Types for Seat Mappings ---
 type Seat = 'N' | 'E' | 'S' | 'W';
 type PlayerToSeatMap = { [K in Player]: Seat };
-type SeatToPlayerMap = { [K in Seat]: Player };
 
 // Helper to map full player name to seat code
 const playerToSeatMap: PlayerToSeatMap = {
@@ -26,17 +21,6 @@ const playerToSeatMap: PlayerToSeatMap = {
 };
 const playerToSeat = (player?: string) => player && playerToSeatMap[player as Player] ? playerToSeatMap[player as Player] : '';
 
-// Helper to map seat code to full player name
-const seatToPlayerMap: SeatToPlayerMap = {
-  N: 'North',
-  E: 'East',
-  S: 'South',
-  W: 'West',
-};
-const seatToPlayer = (seat: string): Player => {
-  if (seatToPlayerMap[seat as Seat]) return seatToPlayerMap[seat as Seat];
-  throw new Error('Invalid seat');
-};
 
 // --- Helper to get seat code for a player, fallback to '' ---
 const getBidderSeat = (bidder: string | undefined): Seat | '' => {
@@ -192,81 +176,7 @@ const PinochleTableVisualization: React.FC<PinochleTableVisualizationProps> = ({
 );
 
 // --- Trump Selection UI ---
-const SUITS = [
-  { suit: 'Spades', icon: '♠️', color: 'text-black' },
-  { suit: 'Hearts', icon: '♥️', color: 'text-red-500' },
-  { suit: 'Diamonds', icon: '♦️', color: 'text-pink-400' },
-  { suit: 'Clubs', icon: '♣️', color: 'text-green-700' },
-  { suit: 'NoMarriage', icon: null, color: 'text-gray-500' },
-];
 
-const TrumpSelectionBox: React.FC<{
-  submitting: boolean;
-  onTrumpClick: (suit: string) => void;
-  selectedTrump: string;
-}> = ({ submitting, onTrumpClick, selectedTrump }) => (
-  <div className="flex flex-col items-center gap-2">
-    <span className="text-lg font-semibold text-gray-700 mb-2">Select Trump Suit:</span>
-    <div className="flex flex-row gap-4 mb-2">
-      {SUITS.map(({ suit, icon, color }) => (
-        <button
-          key={suit}
-          className={`rounded-full border-2 px-4 py-2 text-2xl font-bold focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all duration-150 ${selectedTrump === suit ? 'bg-blue-200 border-blue-600' : 'bg-white border-gray-300'} ${color}`}
-          aria-pressed={selectedTrump === suit}
-          onClick={() => !submitting && onTrumpClick(suit)}
-          disabled={submitting}
-        >
-          {icon || (
-            // NoMarriage: circle with line through it
-            <svg width="28" height="28" viewBox="0 0 28 28">
-              <circle cx="14" cy="14" r="11" stroke="gray" strokeWidth="2.5" fill="none" />
-              <line x1="7" y1="21" x2="21" y2="7" stroke="gray" strokeWidth="2.5" />
-            </svg>
-          )}
-        </button>
-      ))}
-    </div>
-  </div>
-);
-
-// --- Bid Data Form Component ---
-interface BidDataFormProps {
-  bid: number;
-  setBid: (amt: number) => void;
-  submitting: boolean;
-  onSubmit: () => void;
-}
-
-const BidDataForm: React.FC<BidDataFormProps> = ({ bid, setBid, submitting, onSubmit }) => (
-  <form
-    className="flex flex-col items-center gap-2"
-    onSubmit={e => {
-      e.preventDefault();
-      onSubmit();
-    }}
-  >
-    <label className="text-lg font-semibold text-gray-700">
-      Bid Amount:
-      <input
-        type="number"
-        min={50}
-        max={250}
-        step={1}
-        value={bid}
-        onChange={e => setBid(Number(e.target.value))}
-        className="ml-2 border px-2 py-1 rounded w-24 text-center"
-        disabled={submitting}
-      />
-    </label>
-    <button
-      type="submit"
-      className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-6 rounded shadow text-base mt-2"
-      disabled={submitting}
-    >
-      Submit Bid
-    </button>
-  </form>
-);
 
 // --- Main Page Refactor: manage bid/bidder/trump state at top level ---
 const PinochleUXExperimentPage: React.FC = () => {
@@ -287,7 +197,7 @@ const PinochleUXExperimentPage: React.FC = () => {
       setUsTricks(0);
       setThemTricks(0);
     }
-  }, [handState]);
+  }, [handState, setUsTricks, setThemTricks]);
 
   // Only show tags if we are not in 'NoGame' state
   const showTags = state !== 'NoGame';
