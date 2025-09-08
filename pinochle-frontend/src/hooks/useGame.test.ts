@@ -10,8 +10,8 @@ beforeEach(() => {
     mockApi = {
         Completed: async (_gameId: string) => {},
         InProgress: async (_gameId: string, _handState: HandState, _formData: any) => {},
-        NoGame: vi.fn().mockResolvedValue({game_id: 1, state: "WaitingToStart"}),
-        WaitingToStart: vi.fn().mockResolvedValue({game_id: 1, state: "WaitingToStart"})
+        NoGame: vi.fn().mockResolvedValue({game_id: "1", game_state: "WaitingToStart"}),
+        WaitingToStart: vi.fn().mockResolvedValue({game_id: "1", game_state: "WaitingToStart"})
     }
 });
 describe("useGame hook", () => {
