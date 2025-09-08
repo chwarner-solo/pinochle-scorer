@@ -56,7 +56,9 @@ module "cloudsql" {
   region  = var.region
   network = module.vpc.network_self_link
 
-  depends_on = [module.vpc]
+  cloudrun_service_account = module.iam.cloudrun_service_account_email
+
+  depends_on = [module.vpc, module.iam]
 }
 
 # ============================================================================

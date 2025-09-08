@@ -33,3 +33,14 @@ output "secret_name" {
   description = "Secret Manager secret name for database password"
   value       = google_secret_manager_secret.db_password.secret_id
 }
+
+output "iam_user" {
+  description = "IAM database user for service account authentication"
+  value       = google_sql_user.iam_user.name
+}
+
+output "connection_string_iam" {
+  description = "PostgreSQL connection string for IAM authentication"
+  value       = "postgresql://${google_sql_user.iam_user.name}@${google_sql_database_instance.main.private_ip_address}:5432/${google_sql_database.database.name}"
+  sensitive   = false
+}

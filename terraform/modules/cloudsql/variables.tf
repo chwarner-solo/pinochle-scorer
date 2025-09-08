@@ -28,7 +28,7 @@ variable "database_user" {
 variable "instance_tier" {
   description = "CloudSQL instance tier"
   type        = string
-  default     = "db-g1-small"
+  default     = "db-f1-micro"
 }
 
 variable "database_version" {
@@ -41,4 +41,9 @@ variable "deletion_protection" {
   description = "Enable deletion protection"
   type        = bool
   default     = false
+}
+
+variable "cloudrun_service_account" {
+  description = "CloudRun service account email for database access"
+  type        = string
 }

@@ -35,7 +35,7 @@ resource "google_sql_database_instance" "main" {
     tier              = var.instance_tier
     availability_type = "ZONAL"
     disk_size         = 10
-    disk_type         = "PD_HDD"
+    disk_type         = "PD_SSD"
 
     backup_configuration {
       enabled                        = true
@@ -80,6 +80,28 @@ resource "google_sql_user" "user" {
   name     = var.database_user
   instance = google_sql_database_instance.main.name
   password = random_password.db_password.result
+}
+
+# Create IAM database user for service account authentication
+resource "google_sql_user" "iam_user" {
+  project  = var.project
+  name     = trimsuffix(var.cloudrun_service_account, ".gserviceaccount.com")
+  instance = google_sql_database_instance.main.name
+  type     = "CLOUD_IAM_SERVICE_ACCOUNT"
+}
+
+# Grant CloudRun service account permission to connect to CloudSQL
+resource "google_project_iam_member" "cloudsql_client" {
+  project = var.project
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${var.cloudrun_service_account}"
+}
+
+# Grant CloudRun service account permission to access Secret Manager
+resource "google_project_iam_member" "secret_accessor" {
+  project = var.project
+  role    = "roles/secretmanager.secretAccessor" 
+  member  = "serviceAccount:${var.cloudrun_service_account}"
 }
 
 # Store database password in Secret Manager

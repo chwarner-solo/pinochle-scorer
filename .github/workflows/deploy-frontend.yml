@@ -1,0 +1,80 @@
+name: Deploy Frontend to GCS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'pinochle-frontend/**'
+      - '.github/workflows/deploy-frontend.yml'
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  BUCKET_NAME: ${{ vars.FRONTEND_BUCKET_NAME }}
+
+jobs:
+  test-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: pinochle-frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: pinochle-frontend
+        run: npm ci
+
+      - name: Run tests
+        working-directory: pinochle-frontend
+        run: npm test
+
+      - name: Run linter
+        working-directory: pinochle-frontend
+        run: npm run lint
+
+      - name: Build frontend
+        working-directory: pinochle-frontend
+        run: npm run build
+        env:
+          # Add any build-time environment variables here
+          VITE_API_URL: ${{ vars.API_URL }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.FRONTEND_DEPLOY_SA }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy to GCS bucket
+        working-directory: pinochle-frontend
+        run: |
+          echo "🚀 Deploying to bucket: $BUCKET_NAME"
+          
+          # Sync build files to bucket
+          gsutil -m rsync -r -d dist/ gs://$BUCKET_NAME/
+          
+          # Set cache control headers
+          gsutil -m setmeta -h "Cache-Control:public, max-age=31536000" gs://$BUCKET_NAME/**/*.js
+          gsutil -m setmeta -h "Cache-Control:public, max-age=31536000" gs://$BUCKET_NAME/**/*.css
+          gsutil -m setmeta -h "Cache-Control:public, max-age=3600" gs://$BUCKET_NAME/index.html
+          
+          echo "✅ Frontend deployed successfully"
+
+      - name: Deployment Summary
+        run: |
+          echo "## 🎉 Frontend Deployment Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "- **Bucket**: $BUCKET_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: https://storage.googleapis.com/$BUCKET_NAME/index.html" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build**: $(date)" >> $GITHUB_STEP_SUMMARY
