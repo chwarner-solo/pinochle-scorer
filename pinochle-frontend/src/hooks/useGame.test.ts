@@ -21,10 +21,10 @@ describe("useGame hook", () => {
         expect(result.current.game).toBe(null);
     });
 
-    it("Should transition to 'WaitingToStart' after createNewGame", async () => {
+    it("Should transition to 'WaitingToStart' after onGameSubmit", async () => {
        const { result } = renderHook(() => useGame(mockApi));
        await act(async () => {
-           await result.current.createNewGame();
+           await result.current.onGameSubmit();
        });
         expect(result.current.state).toBe("WaitingToStart");
        expect(result.current.game).not.toBeNull();
