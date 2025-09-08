@@ -1,4 +1,4 @@
-import type {Game, GameState} from "../types/Game.ts";
+import type {Game, GameState, Hand} from "../types/Game.ts";
 import {useState, useEffect, useCallback} from "react";
 import type {ApiCallMap} from "../services/api.ts";
 import type {AnyFormData} from "../types/form_types.ts";
@@ -20,7 +20,7 @@ export interface UseGameReturn {
     onGameSubmit: (data?: unknown) => Promise<void>;
     onHandSubmit: (data?: AnyFormData) => Promise<void>;
     onResetGame: () => void;
-    completedHands: Game[];
+    completedHands: Hand[];
     selectedSeat: string;
     setSelectedSeat: (seat: string) => void;
     bid: number;
@@ -137,10 +137,12 @@ function submitHandPhase(
     setRequiredTricks: (value: number) => void,
     setUsScore: (value: number) => void,
     setThemScore: (value: number) => void
-): (formData: AnyFormData) => Promise<void> {
-    return async (formData: AnyFormData) => {
+): (formData?: AnyFormData) => Promise<void> {
+    return async (formData?: AnyFormData) => {
+        if (!formData) return;
         if (!game || !game.game_id) return;
         const handState = game.hand_state;
+        if (!handState) return;
         const errors = validationMap[handState](formData as never);
         if (Object.keys(errors).length > 0) {
             console.log("Validation errors:", errors);
@@ -149,7 +151,9 @@ function submitHandPhase(
         }
         setLoading(true);
         try {
-            const newGame = await api[game.game_state][handState](game.game_id, formData);
+            if (!game.game_state) return;
+            if (game.game_state !== 'InProgress') return;
+            const newGame = await api.InProgress[handState](game.game_id, formData as any);
             setGame(newGame || null);
             setState(newGame?.game_state || 'NoGame');
             setTrump(newGame?.trump || '--');
@@ -179,7 +183,7 @@ export const useGame = (api: ApiCallMap) : UseGameReturn => {
     const [themScore, setThemScore] = useState(0);
     const [trump, setTrump] = useState('--');
     const [requiredTricks, setRequiredTricks] = useState(0);
-    const [completedHands, setCompletedHands] = useState<Game[]>([]);
+    const [completedHands, setCompletedHands] = useState<Hand[]>([]);
     const [selectedSeat, setSelectedSeat] = useState("");
     const [bid, setBid] = useState(50);
     const [submittingBid, setSubmittingBid] = useState(false);
@@ -192,14 +196,14 @@ export const useGame = (api: ApiCallMap) : UseGameReturn => {
     const [themTricks, setThemTricks] = useState(0);
     const [submittingTricks, setSubmittingTricks] = useState(false);
 
-    const seatToPlayerMap = { N: "North", E: "East", S: "South", W: "West" };
+    const seatToPlayerMap: { [key: string]: string } = { N: "North", E: "East", S: "South", W: "West" };
 
     // Helper to fetch completed hands
     const fetchCompletedHands = useCallback(async (gameId: string) => {
         try {
             console.log("Fetching completed hands for game ID:", gameId);
             const resp = await api.getCompletedHands(gameId);
-            setCompletedHands(resp);
+            setCompletedHands(resp as Hand[]);
         } catch (e) {
             console.log("Error fetching completed hands:", e)
             setCompletedHands([]);
@@ -214,10 +218,10 @@ export const useGame = (api: ApiCallMap) : UseGameReturn => {
     }, [game?.game_id, game?.game_state, game?.hand_state, fetchCompletedHands]);
 
     const gameActionMap: GameActionMap = {
-        NoGame: createNewGame(state, api, setLoading, setError, setGame, setState, setRequiredTricks, setUsScore, setThemScore),
-        WaitingToStart: createNewHand(state, api, game, setLoading, setError, setGame, setState, setTrump),
+        NoGame: createNewGame(state, api, setLoading, setError, setGame, (value: GameState) => setState(value), setRequiredTricks, setUsScore, setThemScore),
+        WaitingToStart: createNewHand(state, api, game, setLoading, setError, setGame, (value: GameState) => setState(value), (value?: string) => setTrump(value || '--')),
         InProgress: async() => {}, // Not used for game-level
-        Completed: createNewGame(state, api, setLoading, setError, setGame, setState, setRequiredTricks, setUsScore, setThemScore),
+        Completed: createNewGame(state, api, setLoading, setError, setGame, (value: GameState) => setState(value), setRequiredTricks, setUsScore, setThemScore),
     };
 
     // Compose onGameSubmit for game phases
@@ -225,9 +229,9 @@ export const useGame = (api: ApiCallMap) : UseGameReturn => {
     // Compose onHandSubmit for hand phases
     let onHandSubmit: (data?: AnyFormData) => Promise<void> = async () => {};
     if (state === 'InProgress' && game?.hand_state !== 'NoHand' && game?.hand_state !== 'Completed' && game?.hand_state != null) {
-        onHandSubmit = submitHandPhase(api, game, setLoading, setError, setGame, setState, setTrump, setRequiredTricks, setUsScore, setThemScore);
+        onHandSubmit = submitHandPhase(api, game, setLoading, setError, setGame, (value: GameState) => setState(value), (value?: string) => setTrump(value || '--'), setRequiredTricks, setUsScore, setThemScore);
     } else if (isHandReadyForNew(game?.hand_state)) {
-        onHandSubmit = createNewHand(state, api, game, setLoading, setError, setGame, setState, setTrump);
+        onHandSubmit = createNewHand(state, api, game, setLoading, setError, setGame, (value: GameState) => setState(value), (value?: string) => setTrump(value || '--'));
     }
 
     const handleSubmitBid = async () => {
@@ -235,7 +239,7 @@ export const useGame = (api: ApiCallMap) : UseGameReturn => {
         console.log('[handleSubmitBid] called with:', { selectedSeat, bid, player });
         setSubmittingBid(true);
         try {
-            const result = await onHandSubmit({ player, bid });
+            const result = await onHandSubmit({ player: player as any, bid });
             console.log('[handleSubmitBid] onHandSubmit result:', result);
         } catch (e) {
             console.error('[handleSubmitBid] error:', e);
@@ -248,7 +252,7 @@ export const useGame = (api: ApiCallMap) : UseGameReturn => {
         setSelectedTrump(suit);
         setSubmittingTrump(true);
         try {
-            const result = await onHandSubmit({ trump: suit });
+            const result = await onHandSubmit({ trump: suit as any });
             console.log('[handleTrumpClick] onHandSubmit result:', result);
         } catch (e) {
             console.error('[handleTrumpClick] error:', e);

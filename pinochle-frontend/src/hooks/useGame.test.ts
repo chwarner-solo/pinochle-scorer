@@ -7,10 +7,19 @@ let  mockApi: ApiCallMap;
 
 beforeEach(() => {
     mockApi = {
-        Completed: async () => {},
-        InProgress: async () => {},
+        Completed: vi.fn().mockResolvedValue({game_id: "1", game_state: "Completed"}),
+        InProgress: {
+            NoMarriage: vi.fn().mockResolvedValue({game_id: "1", game_state: "InProgress"}),
+            NoHand: vi.fn().mockResolvedValue({game_id: "1", game_state: "InProgress"}),
+            WaitingForBid: vi.fn().mockResolvedValue({game_id: "1", game_state: "InProgress"}),
+            WaitingForTrump: vi.fn().mockResolvedValue({game_id: "1", game_state: "InProgress"}),
+            WaitingForMeld: vi.fn().mockResolvedValue({game_id: "1", game_state: "InProgress"}),
+            WaitingForTricks: vi.fn().mockResolvedValue({game_id: "1", game_state: "InProgress"}),
+            Completed: vi.fn().mockResolvedValue({game_id: "1", game_state: "InProgress"})
+        },
         NoGame: vi.fn().mockResolvedValue({game_id: "1", game_state: "WaitingToStart"}),
-        WaitingToStart: vi.fn().mockResolvedValue({game_id: "1", game_state: "WaitingToStart"})
+        WaitingToStart: vi.fn().mockResolvedValue({game_id: "1", game_state: "InProgress"}),
+        getCompletedHands: vi.fn().mockResolvedValue([])
     }
 });
 describe("useGame hook", () => {

@@ -121,11 +121,11 @@ interface TableSeatsProps {
 
 const seats = ["N", "E", "S", "W"];
 const seatPositions = [
-  { top: 0, left: "50%", translate: "-50%, -80%" },   // N
-  { top: "50%", right: 0, translate: "80%, -50%" },   // E
-  { bottom: 0, left: "50%", translate: "-50%, 80%" }, // S
-  { top: "50%", left: 0, translate: "-80%, -50%" },   // W
-];
+  { top: "0px", left: "50%", translate: "-50%, -80%" },   // N
+  { top: "50%", right: "0px", translate: "80%, -50%" },   // E
+  { bottom: "0px", left: "50%", translate: "-50%, 80%" }, // S
+  { top: "50%", left: "0px", translate: "-80%, -50%" },   // W
+] as const;
 
 const TableSeats: React.FC<TableSeatsProps> = ({ dealerSeat, bidderSeat, onSeatClick, selectedSeat }) => {
   return (
@@ -181,7 +181,7 @@ const PinochleTableVisualization: React.FC<PinochleTableVisualizationProps> = ({
 // --- Main Page Refactor: manage bid/bidder/trump state at top level ---
 const PinochleUXExperimentPage: React.FC = () => {
   const gameHook = useGame(realGameApi);
-  const { game, state, handState, loading, onGameSubmit, onHandSubmit, onResetHand, trump, completedHands, selectedSeat, setSelectedSeat, bid, setBid, submittingBid, handleSubmitBid, selectedTrump, submittingTrump, onTrumpClick, usMeld, themMeld, setUsMeld, setThemMeld, submittingMeld, handleSubmitMeld, usTricks, setUsTricks, themTricks, setThemTricks, handleSubmitTricks, submittingTricks } = gameHook;
+  const { game, state, handState, loading, onGameSubmit, onHandSubmit, trump, completedHands, selectedSeat, setSelectedSeat, bid, setBid, submittingBid, handleSubmitBid, selectedTrump, submittingTrump, onTrumpClick, usMeld, themMeld, setUsMeld, setThemMeld, submittingMeld, handleSubmitMeld, usTricks, setUsTricks, themTricks, setThemTricks, handleSubmitTricks, submittingTricks } = gameHook;
   // ...other state and handlers
 
   // Fetch running total and completed hands when Start Hand is clicked
@@ -224,7 +224,6 @@ const PinochleUXExperimentPage: React.FC = () => {
             loading={loading}
             onStartGame={onGameSubmit}
             onStartHand={handleStartHand}
-            onResetHand={onResetHand}
             selectedSeat={selectedSeat}
             setSelectedSeat={setSelectedSeat}
             bid={bid}
@@ -269,7 +268,7 @@ const PinochleUXExperimentPage: React.FC = () => {
         {/* Admin/Stats Panel (bottom) */}
         <div className="px-4 pt-2 pb-6">
           <HandsTableCard completedHands={completedHands} />
-          <GameHandAdminPanel game={game} completedHands={completedHands} />
+          <GameHandAdminPanel game={game} completedHands={completedHands} onResetGame={() => {}} onResetHand={() => {}} />
         </div>
       </div>
     </div>

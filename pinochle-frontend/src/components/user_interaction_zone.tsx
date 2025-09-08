@@ -32,7 +32,7 @@ interface UserInteractionZoneProps {
   setThemTricks: (val: number) => void;
   handleSubmitTricks: () => void;
   submittingTricks: boolean;
-  game: Game;
+  game: Game | null;
 }
 
 const UserInteractionZone: React.FC<UserInteractionZoneProps> = (props) => {
@@ -93,7 +93,7 @@ const UserInteractionZone: React.FC<UserInteractionZoneProps> = (props) => {
     );
   }
   if (gameState === 'InProgress') {
-    const handStateMap: Record<string, JSX.Element> = {
+    const handStateMap: Record<string, React.JSX.Element> = {
       WaitingForBid: (
         <div className="flex flex-col items-center justify-center w-full px-6 py-3">
           <span className="text-lg font-semibold text-gray-700 mb-2">Enter Bidder Seat & Bid:</span>
@@ -194,10 +194,12 @@ const UserInteractionZone: React.FC<UserInteractionZoneProps> = (props) => {
     return handStateMap[handState] || <div className="h-12" />;
   }
   if (gameState === 'Completed') {
+    const usScore = game?.us_score ?? 0;
+    const themScore = game?.them_score ?? 0;
     let winner = '';
-    if (game?.us_score > game?.them_score) {
+    if (usScore > themScore) {
       winner = 'North-South Team Wins!';
-    } else if (game?.them_score > game?.us_score) {
+    } else if (themScore > usScore) {
       winner = 'East-West Team Wins!';
     } else {
       winner = "It's a tie!";

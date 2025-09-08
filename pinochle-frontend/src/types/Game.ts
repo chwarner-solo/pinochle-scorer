@@ -25,6 +25,7 @@ export interface Game {
     required_tricks?: number;
     us_hand_score?: number;
     them_hand_score?: number;
+    hands?: Hand[];
 }
 
 export interface Hand {
@@ -39,6 +40,8 @@ export interface Hand {
     them_tricks?: number;
     us_total?: number;
     them_total?: number;
+    us_score?: number;
+    them_score?: number;
     dealer?: Player;
     required_tricks?: number;
 }

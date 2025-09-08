@@ -1,23 +1,9 @@
 import React from 'react';
 import {PlayerIcons, SuitIcons} from "./IconMaps.tsx";
-import type {Player, Suit} from "../types/Game.ts";
+import type {Player, Suit, Hand} from "../types/Game.ts";
 
 interface HandsTableCardProps {
-  completedHands: Array<{
-    id: string;
-    state: string;
-    dealer?: string;
-    bidder?: string;
-    bid_amount?: number;
-    trump?: string;
-    us_total?: number;
-    them_total?: number;
-    us_meld?: number;
-    them_meld?: number;
-    us_tricks?: number;
-    them_tricks?: number;
-    required_tricks?: number;
-  }>;
+  completedHands: Hand[];
 }
 
 const HandsTableCard: React.FC<HandsTableCardProps> = ({ completedHands }) => (
@@ -46,7 +32,7 @@ const HandsTableCard: React.FC<HandsTableCardProps> = ({ completedHands }) => (
           const showTotal = (total?: number | null) => (total != null ? total : 0);
 
           return (
-            <React.Fragment key={hand.id}>
+            <React.Fragment key={hand.hand_id}>
               <tr>
                 <td className="px-2 py-1 border border-gray-400 align-middle" rowSpan={3} style={{ verticalAlign: 'middle' }}>{idx + 1}</td>
                 <td className="px-2 py-1 border border-gray-400 align-middle">{showMeld(hand.us_meld)}</td>

@@ -1,5 +1,5 @@
 import axios from "axios";
-import type {Game, GameState, HandState, RunningTotal} from "../types/Game.ts";
+import type {Game, GameState, Hand, HandState, RunningTotal} from "../types/Game.ts";
 import type {BidFormData, FormData, MeldFormData, TricksFormData, TrumpFormData} from "../types/form_types.ts";
 
 export interface GameApi {
