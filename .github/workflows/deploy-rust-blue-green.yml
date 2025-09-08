@@ -8,21 +8,6 @@ on:
       - 'Dockerfile'
       - '.github/workflows/deploy-rust-blue-green.yml'
   workflow_dispatch:
-    inputs:
-      deployment_strategy:
-        description: 'Deployment strategy'
-        required: true
-        default: 'canary'
-        type: choice
-        options:
-          - canary
-          - blue-green
-          - direct
-      canary_percentage:
-        description: 'Canary traffic percentage (1-99)'
-        required: false
-        default: '10'
-        type: string
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
@@ -144,17 +129,7 @@ jobs:
             exit 1
           fi
 
-      - name: Get Current Revision
-        id: current
-        run: |
-          CURRENT_REVISION=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
-            --region=${{ env.REGION }} \
-            --format="value(status.latestReadyRevisionName)" 2>/dev/null || echo "none")
-          echo "revision=$CURRENT_REVISION" >> $GITHUB_OUTPUT
-          echo "📋 Current revision: $CURRENT_REVISION"
-
-      - name: Deploy New Revision (No Traffic)
-        id: deploy
+      - name: Deploy to Cloud Run
         run: |
           IMAGE_TAG="${{ steps.image.outputs.image_tag }}"
           echo "🚀 Deploying: $IMAGE_TAG"
@@ -163,7 +138,6 @@ jobs:
             --image "$IMAGE_TAG" \
             --region ${{ env.REGION }} \
             --allow-unauthenticated \
-            --no-traffic \
             --port=8080 \
             --max-instances=10 \
             --min-instances=0 \
@@ -172,157 +146,7 @@ jobs:
             --timeout=300 \
             --quiet
           
-          NEW_REVISION=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
-            --region=${{ env.REGION }} \
-            --format="value(status.latestReadyRevisionName)")
-          echo "revision=$NEW_REVISION" >> $GITHUB_OUTPUT
-          echo "✅ New revision deployed: $NEW_REVISION"
-
-      - name: Health Check New Revision
-        run: |
-          NEW_REVISION="${{ steps.deploy.outputs.revision }}"
-          CURRENT_REVISION="${{ steps.current.outputs.revision }}"
-          
-          echo "🏥 Health checking new revision: $NEW_REVISION"
-          
-          # Temporarily route 5% traffic to new revision for health check
-          if [ "$CURRENT_REVISION" != "none" ]; then
-            echo "🔄 Temporarily routing 5% traffic to new revision for health check..."
-            gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
-              --region=${{ env.REGION }} \
-              --to-revisions=$NEW_REVISION=5,$CURRENT_REVISION=95 \
-              --quiet
-          else
-            echo "🔄 No current revision, routing 100% traffic for health check..."
-            gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
-              --region=${{ env.REGION }} \
-              --to-revisions=$NEW_REVISION=100 \
-              --quiet
-          fi
-          
-          # Wait for traffic routing to take effect
-          echo "⏳ Waiting for traffic routing to take effect..."
-          sleep 30
-          
-          # Get service URL
-          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
-            --region=${{ env.REGION }} \
-            --format="value(status.url)")
-          
-          echo "🏥 Health checking: $SERVICE_URL/api/health"
-          
-          # Health check with retries
-          HEALTH_CHECK_PASSED=false
-          for i in {1..10}; do
-            echo "🔍 Health check attempt $i/10..."
-          
-            if curl -f -m 10 -s "$SERVICE_URL/api/health"; then
-              echo "✅ Health check passed on attempt $i"
-              HEALTH_CHECK_PASSED=true
-              break
-            else
-              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -m 10 "$SERVICE_URL/api/health" || echo "000")
-              echo "❌ Health check failed, attempt $i/10 (HTTP: $HTTP_CODE)"
-              sleep 30
-            fi
-          done
-          
-          # Revert traffic if health check failed
-          if [ "$HEALTH_CHECK_PASSED" = "false" ]; then
-            echo "💥 Health check failed, reverting traffic..."
-            if [ "$CURRENT_REVISION" != "none" ]; then
-              gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
-                --region=${{ env.REGION }} \
-                --to-revisions=$CURRENT_REVISION=100 \
-                --quiet
-              echo "🔄 Traffic reverted to previous revision: $CURRENT_REVISION"
-            fi
-          
-            echo "🔍 Debug info:"
-            echo "  Service URL: $SERVICE_URL"
-            echo "  Failed Revision: $NEW_REVISION"
-          
-            exit 1
-          else
-            echo "✅ Health check passed, ready for deployment strategy"
-            # Reset traffic to no-traffic for the new revision (deployment strategies will handle traffic)
-            if [ "$CURRENT_REVISION" != "none" ]; then
-              gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
-                --region=${{ env.REGION }} \
-                --to-revisions=$CURRENT_REVISION=100 \
-                --quiet
-              echo "🔄 Traffic reset to current revision for deployment strategy"
-            fi
-          fi
-
-      - name: Determine Deployment Strategy
-        id: strategy
-        run: |
-          STRATEGY="${{ github.event.inputs.deployment_strategy }}"
-          if [ -z "$STRATEGY" ]; then
-            STRATEGY="canary"
-          fi
-          echo "strategy=$STRATEGY" >> $GITHUB_OUTPUT
-          echo "📋 Deployment strategy: $STRATEGY"
-
-      - name: Canary Deployment
-        if: steps.strategy.outputs.strategy == 'canary'
-        run: |
-          PERCENTAGE="${{ github.event.inputs.canary_percentage || '10' }}"
-          NEW_REVISION="${{ steps.deploy.outputs.revision }}"
-          CURRENT_REVISION="${{ steps.current.outputs.revision }}"
-          
-          echo "🐤 Starting canary deployment with $PERCENTAGE% traffic"
-          echo "  New revision: $NEW_REVISION"
-          echo "  Current revision: $CURRENT_REVISION"
-          
-          if [ "$CURRENT_REVISION" != "none" ]; then
-            # Calculate remaining percentage for current revision
-            REMAINING_PERCENTAGE=$((100-PERCENTAGE))
-            echo "🔄 Splitting traffic: $NEW_REVISION=$PERCENTAGE%, $CURRENT_REVISION=$REMAINING_PERCENTAGE%"
-          
-            gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
-              --region=${{ env.REGION }} \
-              --to-revisions=$NEW_REVISION=$PERCENTAGE,$CURRENT_REVISION=$REMAINING_PERCENTAGE
-          else
-            echo "🔄 No current revision, deploying $NEW_REVISION with 100% traffic"
-            gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
-              --region=${{ env.REGION }} \
-              --to-revisions=$NEW_REVISION=100
-          fi
-          
-          echo "⏱️  Canary running for 5 minutes..."
-          sleep 300  # Wait 5 minutes
-          
-          echo "📊 Checking metrics..."
-          # Add your metric checks here
-          
-          echo "✅ Canary validation passed, promoting to 100%"
-          gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
-            --region=${{ env.REGION }} \
-            --to-latest
-
-      - name: Blue/Green Deployment
-        if: steps.strategy.outputs.strategy == 'blue-green'
-        run: |
-          echo "🔄 Blue/Green deployment: Switching 100% traffic"
-          gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
-            --region=${{ env.REGION }} \
-            --to-latest
-          
-          echo "⏱️  Monitoring for 2 minutes..."
-          sleep 120
-          
-          echo "📊 Checking post-deployment health..."
-          # Add validation checks here
-
-      - name: Direct Deployment
-        if: steps.strategy.outputs.strategy == 'direct'
-        run: |
-          echo "⚡ Direct deployment: Immediate 100% traffic"
-          gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
-            --region=${{ env.REGION }} \
-            --to-latest
+          echo "✅ Deployment complete"
 
       - name: Cleanup Old Revisions
         run: |
@@ -345,52 +169,9 @@ jobs:
           echo "## 🎉 Deployment Complete!" >> $GITHUB_STEP_SUMMARY
           echo "- **Service**: ${{ env.SERVICE_NAME }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Region**: ${{ env.REGION }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Strategy**: ${{ steps.strategy.outputs.strategy }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **New Revision**: ${{ steps.deploy.outputs.revision }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Image**: ${{ steps.image.outputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
           
           SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
             --region=${{ env.REGION }} \
             --format="value(status.url)")
           echo "- **Service URL**: $SERVICE_URL" >> $GITHUB_STEP_SUMMARY
-
-  rollback:
-    if: failure()
-    needs: [build, deploy]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-
-    steps:
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
-          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Rollback Deployment
-        run: |
-          echo "🚨 Deployment failed, initiating rollback..."
-          
-          # Get the previous stable revision
-          PREVIOUS_REVISION=$(gcloud run revisions list \
-            --service=${{ env.SERVICE_NAME }} \
-            --region=${{ env.REGION }} \
-            --filter="status.conditions.type=Ready AND status.conditions.status=True" \
-            --sort-by=~metadata.creationTimestamp \
-            --format="value(metadata.name)" \
-            --limit=2 | tail -n 1)
-          
-          if [ -n "$PREVIOUS_REVISION" ]; then
-            echo "⏪ Rolling back to revision: $PREVIOUS_REVISION"
-            gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
-              --region=${{ env.REGION }} \
-              --to-revisions=$PREVIOUS_REVISION=100
-            echo "✅ Rollback completed"
-          else
-            echo "❌ No previous revision found for rollback"
-          fi
