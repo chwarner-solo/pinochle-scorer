@@ -47,6 +47,7 @@ jobs:
         env:
           # Add any build-time environment variables here
           VITE_API_HOST: ${{ vars.API_URL }}
+          NODE_ENV: PROD
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2

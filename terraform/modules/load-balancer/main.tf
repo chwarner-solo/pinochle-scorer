@@ -43,6 +43,12 @@ resource "google_compute_backend_service" "api_backend" {
   backend {
     group = google_compute_region_network_endpoint_group.api_neg.id
   }
+
+  # Enable logging for debugging API requests
+  log_config {
+    enable = true
+    sample_rate = 1.0  # Log all requests for debugging
+  }
 }
 
 resource "google_compute_url_map" "main_url_map" {
