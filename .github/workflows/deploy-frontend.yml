@@ -46,7 +46,7 @@ jobs:
         run: npm run build
         env:
           # Add any build-time environment variables here
-          VITE_API_URL: ${{ vars.API_URL }}
+          VITE_API_HOST: ${{ vars.API_URL }}
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2

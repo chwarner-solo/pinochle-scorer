@@ -103,7 +103,7 @@ resource "google_compute_url_map" "http_redirect_url_map" {
 resource "google_compute_target_http_proxy" "main_http_proxy" {
   project = var.project
   name = "main-http-proxy"
-  url_map = google_compute_url_map.http_redirect_url_map.id
+  url_map = var.domain_name != null ? google_compute_url_map.http_redirect_url_map.id : google_compute_url_map.main_url_map.id
 }
 resource "google_compute_target_https_proxy" "main_https_proxy" {
   count = var.domain_name != null ? 1 : 0
