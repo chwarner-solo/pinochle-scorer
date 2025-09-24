@@ -1,0 +1,1 @@
+bucket = "pinochle-scorer-471315-tfstate"

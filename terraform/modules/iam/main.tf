@@ -77,7 +77,7 @@ resource "google_service_account" "cloudrun_sa" {
 # CloudRUN Application Permissions
 resource "google_project_iam_member" "cloudrun_permissions" {
   for_each = toset([
-    "roles/cloudsql.client",             # Connect to database
+    "roles/datastore.user",              # Firestore access
     "roles/secretmanager.secretAccessor", # Access secrets
     "roles/logging.logWriter",           # Write logs
     "roles/monitoring.metricWriter",     # Write metrics

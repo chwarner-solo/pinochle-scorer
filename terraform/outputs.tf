@@ -1,21 +1,16 @@
 # terraform/outputs.tf
 
 # ============================================================================
-# Application URLs - Main endpoints users will access
+# Application URLs - Load Balancer + Custom Domain
 # ============================================================================
 output "application_url" {
-  description = "Main application URL (frontend with API routing)"
+  description = "Frontend URL (via Load Balancer)"
   value       = module.load_balancer.frontend_url
 }
 
-output "direct_api_url" {
-  description = "Direct CloudRUN API URL (for development/testing)"
-  value       = module.cloudrun.service_url
-}
-
-output "frontend_ip" {
-  description = "Global static IP address for the load balancer"
-  value       = module.load_balancer.frontend_ip
+output "api_url" {
+  description = "API URL (via Load Balancer)"
+  value       = var.domain_name != null ? "https://${var.domain_name}/api" : "http://${module.load_balancer.frontend_ip}/api"
 }
 
 # ============================================================================
@@ -55,10 +50,7 @@ output "services" {
       location         = module.cloudrun.location
       service_account  = module.cloudrun.service_account_email
     }
-    load_balancer = {
-      ip_address = module.load_balancer.frontend_ip
-      url_map_id = module.load_balancer.url_map_id
-    }
+    # load_balancer removed - using direct GCS + CloudRun architecture
   }
 }
 
@@ -77,7 +69,9 @@ output "infrastructure" {
     }
 
     database = {
-      connection_name = module.cloudsql.instance_connection_name
+      firestore_name     = module.firestore.database_name
+      firestore_location = module.firestore.location_id
+      firestore_url      = module.firestore.database_url
     }
   }
   sensitive = true  # Contains database connection info
@@ -106,9 +100,8 @@ output "useful_commands" {
     view_bucket = "gsutil ls gs://${module.frontend.bucket_name}"
 
     # URL Testing
-    test_frontend = "curl -I ${module.load_balancer.frontend_url}"
-    test_api = "curl -I ${module.load_balancer.frontend_url}/api/health"
-    test_direct_api = "curl -I ${module.cloudrun.service_url}/api/health"
+    test_frontend = "curl -I https://storage.googleapis.com/${module.frontend.bucket_name}/index.html"
+    test_api = "curl -I ${module.cloudrun.service_url}/api/health"
   }
 }
 
@@ -122,7 +115,7 @@ output "setup_instructions" {
     step_2 = "Artifact Registry repository is automatically created: ${module.artifact_registry.repository_name}"
     step_3 = "ARTIFACT_REGISTRY_REPO is automatically set in GitHub secrets output"
     step_4 = "Push your code to trigger the deployment pipeline"
-    step_5 = "Monitor deployment: ${module.load_balancer.frontend_url}"
+    step_5 = "Monitor deployment: https://storage.googleapis.com/${module.frontend.bucket_name}/index.html"
 
     github_secrets_path = "GitHub → Your Repository → Settings → Secrets and variables → Actions → Repository secrets"
     documentation = "See README.md for detailed setup instructions"
@@ -135,8 +128,11 @@ output "setup_instructions" {
 output "dns_configuration" {
   description = "DNS configuration for custom domain (if domain_name is set)"
   value = var.domain_name != null ? {
-    domain = var.domain_name
-    dns_instructions = "Create an A record pointing ${var.domain_name} to ${module.load_balancer.frontend_ip}"
+    domain         = var.domain_name
+    name_servers   = module.dns.name_servers
+    dns_zone_name  = module.dns.dns_zone_name
+    load_balancer_ip = module.load_balancer.frontend_ip
     verification_command = "nslookup ${var.domain_name}"
+    setup_instructions = "Configure your domain registrar to use these name servers: ${join(", ", module.dns.name_servers)}"
   } : null
 }

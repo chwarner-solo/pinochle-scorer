@@ -81,12 +81,12 @@ resource "google_cloud_run_v2_service" "api" {
         value = var.rust_log_level
       }
 
-      # Database URL (if provided)
+      # Firestore Database URL (if provided)
       dynamic "env" {
-        for_each = var.database_url != "" ? [1] : []
+        for_each = var.firestore_database_url != "" ? [1] : []
         content {
-          name  = "DATABASE_URL"
-          value = var.database_url
+          name  = "FIRESTORE_DATABASE_URL"
+          value = var.firestore_database_url
         }
       }
 

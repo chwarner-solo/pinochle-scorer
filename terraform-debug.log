@@ -1,0 +1,31 @@
+2025-09-07T14:37:20.882-0400 [INFO]  Terraform version: 1.5.7
+2025-09-07T14:37:20.882-0400 [DEBUG] using github.com/hashicorp/go-tfe v1.26.0
+2025-09-07T14:37:20.882-0400 [DEBUG] using github.com/hashicorp/hcl/v2 v2.16.2
+2025-09-07T14:37:20.882-0400 [DEBUG] using github.com/hashicorp/terraform-svchost v0.1.0
+2025-09-07T14:37:20.882-0400 [DEBUG] using github.com/zclconf/go-cty v1.12.2
+2025-09-07T14:37:20.882-0400 [INFO]  Go runtime version: go1.23.1
+2025-09-07T14:37:20.882-0400 [INFO]  CLI args: []string{"terraform", "outputs"}
+2025-09-07T14:37:20.882-0400 [DEBUG] Attempting to open CLI config file: /Users/christopherwarner/.terraformrc
+2025-09-07T14:37:20.882-0400 [DEBUG] File doesn't exist, but doesn't need to. Ignoring.
+2025-09-07T14:37:20.883-0400 [DEBUG] ignoring non-existing provider search directory terraform.d/plugins
+2025-09-07T14:37:20.883-0400 [DEBUG] ignoring non-existing provider search directory /Users/christopherwarner/.terraform.d/plugins
+2025-09-07T14:37:20.883-0400 [DEBUG] ignoring non-existing provider search directory /Users/christopherwarner/Library/Application Support/io.terraform/plugins
+2025-09-07T14:37:20.883-0400 [DEBUG] ignoring non-existing provider search directory /Library/Application Support/io.terraform/plugins
+2025-09-07T14:37:20.884-0400 [INFO]  CLI command args: []string{"outputs"}
+2025-09-07T14:37:24.701-0400 [INFO]  Terraform version: 1.5.7
+2025-09-07T14:37:24.701-0400 [DEBUG] using github.com/hashicorp/go-tfe v1.26.0
+2025-09-07T14:37:24.701-0400 [DEBUG] using github.com/hashicorp/hcl/v2 v2.16.2
+2025-09-07T14:37:24.701-0400 [DEBUG] using github.com/hashicorp/terraform-svchost v0.1.0
+2025-09-07T14:37:24.701-0400 [DEBUG] using github.com/zclconf/go-cty v1.12.2
+2025-09-07T14:37:24.701-0400 [INFO]  Go runtime version: go1.23.1
+2025-09-07T14:37:24.701-0400 [INFO]  CLI args: []string{"terraform", "output"}
+2025-09-07T14:37:24.701-0400 [DEBUG] Attempting to open CLI config file: /Users/christopherwarner/.terraformrc
+2025-09-07T14:37:24.701-0400 [DEBUG] File doesn't exist, but doesn't need to. Ignoring.
+2025-09-07T14:37:24.701-0400 [DEBUG] ignoring non-existing provider search directory terraform.d/plugins
+2025-09-07T14:37:24.701-0400 [DEBUG] ignoring non-existing provider search directory /Users/christopherwarner/.terraform.d/plugins
+2025-09-07T14:37:24.701-0400 [DEBUG] ignoring non-existing provider search directory /Users/christopherwarner/Library/Application Support/io.terraform/plugins
+2025-09-07T14:37:24.701-0400 [DEBUG] ignoring non-existing provider search directory /Library/Application Support/io.terraform/plugins
+2025-09-07T14:37:24.701-0400 [INFO]  CLI command args: []string{"output"}
+2025-09-07T14:37:24.704-0400 [DEBUG] New state was assigned lineage "9e4800a5-7e02-9064-18d9-f5542537805f"
+2025-09-07T14:37:24.704-0400 [DEBUG] checking for provisioner in "."
+2025-09-07T14:37:24.734-0400 [DEBUG] checking for provisioner in "/opt/homebrew/bin"

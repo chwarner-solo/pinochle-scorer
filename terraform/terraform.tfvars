@@ -10,6 +10,7 @@ frontend_enable_versioning = false
 
 enable_cdn = true
 ssl_redirect = true
+domain_name = "pinochle-scorer.app"
 
 api_service_name = "pinochle-scorer-api"
 

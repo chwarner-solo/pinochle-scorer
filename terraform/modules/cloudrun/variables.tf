@@ -83,8 +83,8 @@ variable "env_vars" {
   default     = {}
 }
 
-variable "database_url" {
-  description = "Database connection URL"
+variable "firestore_database_url" {
+  description = "Firestore database URL"
   type        = string
   default     = ""
   sensitive   = true

@@ -47,18 +47,29 @@ module "firewall" {
 }
 
 # ============================================================================
-# Database - CloudSQL with VPC integration
+# Database - Firestore NoSQL database
 # ============================================================================
-module "cloudsql" {
-  source = "./modules/cloudsql"
+# NOTE: CloudSQL module removed - applying this will destroy CloudSQL resources
+# module "cloudsql" {
+#   source = "./modules/cloudsql"
+#   project = var.project
+#   region  = var.region
+#   network = module.vpc.network_self_link
+#   cloudrun_service_account = module.iam.cloudrun_service_account_email
+#   depends_on = [module.vpc, module.iam]
+# }
 
-  project = var.project
-  region  = var.region
-  network = module.vpc.network_self_link
+module "firestore" {
+  source = "./modules/firestore"
 
-  cloudrun_service_account = module.iam.cloudrun_service_account_email
+  project               = var.project
+  database_id          = var.firestore_database_id
+  location_id          = var.firestore_location_id
+  database_type        = var.firestore_database_type
+  delete_protection    = var.firestore_delete_protection
+  service_account_email = module.iam.cloudrun_service_account_email
 
-  depends_on = [module.vpc, module.iam]
+  depends_on = [module.iam]
 }
 
 # ============================================================================
@@ -113,7 +124,7 @@ module "cloudrun" {
   vpc_connector_name        = module.vpc_connector.connector_name
 
   # Database integration
-  database_url              = module.cloudsql.database_url
+  firestore_database_url    = module.firestore.database_url
 
   # Environment variables
   env_vars                  = var.api_env_vars
@@ -129,25 +140,35 @@ module "cloudrun" {
 }
 
 # ============================================================================
-# Load Balancer - Traffic orchestration between frontend and API
+# Load Balancer - Global HTTP(S) Load Balancer for frontend and API
 # ============================================================================
 module "load_balancer" {
   source = "./modules/load-balancer"
 
-  project               = var.project
-  region                = var.region
-
-  # Frontend integration
-  frontend_bucket_name  = module.frontend.bucket_name
-
-  # API integration
-  cloudrun_service_name = module.cloudrun.service_name
-
-  # Configuration
+  project                = var.project
+  region                 = var.region
+  frontend_bucket_name   = module.frontend.bucket_name
+  cloudrun_service_name  = module.cloudrun.service_name
   enable_cdn            = var.enable_cdn
   domain_name           = var.domain_name
   ssl_redirect          = var.ssl_redirect
 
+  depends_on = [module.frontend, module.cloudrun]
+}
+
+# ============================================================================
+# DNS Management - Domain and DNS records
+# ============================================================================
+module "dns" {
+  source = "./modules/dns"
+
+  project           = var.project
+  domain_name       = var.domain_name
+  load_balancer_ip  = module.load_balancer.frontend_ip
+  create_www_record = true
+  labels           = local.common_labels
+
+  depends_on = [module.load_balancer]
 }
 
 # ============================================================================

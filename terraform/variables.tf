@@ -192,3 +192,30 @@ variable "api_secret_manager_secrets" {
   type        = map(string)
   default     = {}
 }
+
+# ============================================================================
+# Firestore Configuration
+# ============================================================================
+variable "firestore_database_id" {
+  description = "Firestore database ID"
+  type        = string
+  default     = "(default)"
+}
+
+variable "firestore_location_id" {
+  description = "Location for Firestore database"
+  type        = string
+  default     = "nam5"
+}
+
+variable "firestore_database_type" {
+  description = "Database type (FIRESTORE_NATIVE or DATASTORE_MODE)"
+  type        = string
+  default     = "FIRESTORE_NATIVE"
+}
+
+variable "firestore_delete_protection" {
+  description = "Enable delete protection for Firestore database"
+  type        = bool
+  default     = true
+}

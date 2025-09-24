@@ -133,7 +133,7 @@ jobs:
         run: |
           IMAGE_TAG="${{ steps.image.outputs.image_tag }}"
           echo "🚀 Deploying: $IMAGE_TAG"
-          
+
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --image "$IMAGE_TAG" \
             --region ${{ env.REGION }} \
@@ -144,8 +144,9 @@ jobs:
             --cpu=2 \
             --memory=2Gi \
             --timeout=300 \
+            --set-env-vars="FIRESTORE_DATABASE_URL=https://firestore.googleapis.com/v1/projects/${{ env.PROJECT_ID }}/databases/(default),GOOGLE_CLOUD_PROJECT=${{ env.PROJECT_ID }}" \
             --quiet
-          
+
           echo "✅ Deployment complete"
 
       - name: Cleanup Old Revisions
@@ -170,8 +171,10 @@ jobs:
           echo "- **Service**: ${{ env.SERVICE_NAME }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Region**: ${{ env.REGION }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Image**: ${{ steps.image.outputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
-          
+
           SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
             --region=${{ env.REGION }} \
             --format="value(status.url)")
-          echo "- **Service URL**: $SERVICE_URL" >> $GITHUB_STEP_SUMMARY
+          echo "- **CloudRun Service URL**: $SERVICE_URL" >> $GITHUB_STEP_SUMMARY
+          echo "- **Load Balancer URL**: https://pinochle-scorer.app" >> $GITHUB_STEP_SUMMARY
+          echo "- **API Endpoint**: https://pinochle-scorer.app/api" >> $GITHUB_STEP_SUMMARY

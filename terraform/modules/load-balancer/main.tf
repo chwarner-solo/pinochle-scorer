@@ -6,8 +6,13 @@ resource "google_compute_global_address" "frontend_ip" {
 resource "google_compute_backend_bucket" "frontend_backend" {
   project = var.project
   name = "frontend-backend"
-  description = "Backend bucket for REACT frontend"
+  description = "Backend bucket for React frontend"
   bucket_name = var.frontend_bucket_name
+
+  # Enable serving index.html for SPA routing
+  custom_response_headers = [
+    "Cache-Control: public, max-age=3600"
+  ]
 
   dynamic "cdn_policy" {
     for_each = var.enable_cdn ? [1] : []
@@ -128,9 +133,10 @@ resource "google_compute_global_forwarding_rule" "main_http" {
 }
 
 resource "google_compute_global_forwarding_rule" "main_https" {
-  count = var.domain_name != null ? 1 : 0
-  name   = "main-https-fowarding-rule"
-  target = google_compute_target_https_proxy.main_https_proxy[0].id
+  count      = var.domain_name != null ? 1 : 0
+  project    = var.project
+  name       = "main-https-forwarding-rule"
+  target     = google_compute_target_https_proxy.main_https_proxy[0].id
   port_range = "443"
   ip_address = google_compute_global_address.frontend_ip.address
 }
